@@ -5,7 +5,7 @@
 
 ---
 
-## Phase 1 — Fundação e Autenticação
+## Phase 1: Fundação e Autenticação
 
 **Goal:** Projeto configurado do zero com autenticação funcional para admin e cliente.
 
@@ -20,7 +20,7 @@
 
 ---
 
-## Phase 2 — Pets e Serviços
+## Phase 2: Pets e Serviços
 
 **Goal:** Admin gerencia o catálogo de serviços; cliente cadastra e gerencia seus pets.
 
@@ -34,7 +34,7 @@
 
 ---
 
-## Phase 3 — Disponibilidade e Slots
+## Phase 3: Disponibilidade e Slots
 
 **Goal:** Admin configura quando a clínica atende; sistema gera os horários disponíveis corretamente.
 
@@ -48,7 +48,7 @@
 
 ---
 
-## Phase 4 — Agendamento e Agenda
+## Phase 4: Agendamento e Agenda
 
 **Goal:** Cliente agenda pelo celular; admin visualiza e gerencia a agenda completa.
 
@@ -63,7 +63,7 @@
 
 ---
 
-## Phase 5 — Notificações
+## Phase 5: Notificações
 
 **Goal:** Cliente e admin recebem confirmações automáticas via e-mail e WhatsApp.
 
@@ -77,7 +77,7 @@
 
 ---
 
-## Phase 6 — Polish e Deploy
+## Phase 6: Polish e Deploy
 
 **Goal:** Sistema estável, seguro e rodando em produção.
 
@@ -96,12 +96,12 @@
 
 | Phase | Goal | Requirements |
 |-------|------|--------------|
-| 1 — Fundação e Auth | Projeto do zero com auth dual | 8 reqs |
-| 2 — Pets e Serviços | Catálogo e cadastro de pets | 7 reqs |
-| 3 — Disponibilidade | Slots gerados corretamente | 3 reqs |
-| 4 — Agendamento | Fluxo completo cliente + agenda admin | 9 reqs |
-| 5 — Notificações | WhatsApp + e-mail automáticos | 4 reqs |
-| 6 — Polish e Deploy | Produção estável | INFRA-04 |
+| 1: Fundação e Auth | Projeto do zero com auth dual | 8 reqs |
+| 2: Pets e Serviços | Catálogo e cadastro de pets | 7 reqs |
+| 3: Disponibilidade | Slots gerados corretamente | 3 reqs |
+| 4: Agendamento | Fluxo completo cliente + agenda admin | 9 reqs |
+| 5: Notificações | WhatsApp + e-mail automáticos | 4 reqs |
+| 6: Polish e Deploy | Produção estável | INFRA-04 |
 
 **Total v1:** 27 requirements → 6 phases → ~22 plans
 
