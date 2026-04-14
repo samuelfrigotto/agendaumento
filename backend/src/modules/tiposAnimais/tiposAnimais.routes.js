@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const tiposAnimaisController = require('./tiposAnimais.controller');
 const { criarValidator, atualizarValidator } = require('./tiposAnimais.validator');
-const auth = require('../../middlewares/auth');
+const { auth } = require('../../middlewares/auth');
 
 // Todas as rotas requerem autenticacao
 router.use(auth);
