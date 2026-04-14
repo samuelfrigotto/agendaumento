@@ -43,14 +43,26 @@ const listarRacasPorEspecie = async (banhistaId, especie) => {
 };
 
 const criar = async (banhistaId, dados) => {
-  // Verificar se ja existe
+  // Verificar se ja existe (ativo ou inativo)
   const existe = await query(
-    `SELECT id FROM tipos_animais
+    `SELECT id, ativo FROM tipos_animais
      WHERE banhista_id = $1 AND especie = $2 AND (raca = $3 OR (raca IS NULL AND $3 IS NULL))`,
     [banhistaId, dados.especie, dados.raca || null]
   );
 
   if (existe.rows.length > 0) {
+    const registro = existe.rows[0];
+
+    // Se existe mas esta inativo, reativar
+    if (!registro.ativo) {
+      const reativado = await query(
+        `UPDATE tipos_animais SET ativo = true WHERE id = $1 RETURNING id, especie, raca, ativo`,
+        [registro.id]
+      );
+      return reativado.rows[0];
+    }
+
+    // Se ja existe e esta ativo, erro
     throw new AppError('Este tipo de animal ja existe', 400);
   }
 

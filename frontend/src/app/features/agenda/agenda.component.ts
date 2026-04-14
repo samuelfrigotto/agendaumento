@@ -835,8 +835,10 @@ export class AgendaComponent implements OnInit {
 
   carregarServicosDisponiveis(): void {
     this.api.getServicos().subscribe({
-      next: (res) => {
-        this.servicosDisponiveis.set(res.servicos || []);
+      next: (res: any) => {
+        // Backend retorna array diretamente ou { servicos: [...] }
+        const servicos = Array.isArray(res) ? res : (res.servicos || []);
+        this.servicosDisponiveis.set(servicos);
       }
     });
   }
@@ -939,8 +941,9 @@ export class AgendaComponent implements OnInit {
 
     // Carregar servicos
     this.api.getServicos().subscribe({
-      next: (res) => {
-        this.servicosLista.set(res.servicos || []);
+      next: (res: any) => {
+        const servicos = Array.isArray(res) ? res : (res.servicos || []);
+        this.servicosLista.set(servicos);
       }
     });
   }

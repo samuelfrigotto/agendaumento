@@ -31,7 +31,6 @@ interface Cliente {
     <div class="page-container">
       <header class="page-header">
         <h1 class="page-title">Pets</h1>
-        <button class="btn btn-primary" (click)="novoPet()">+ Novo Pet</button>
       </header>
 
       <div class="search-bar">
@@ -78,7 +77,8 @@ interface Cliente {
             </div>
           } @empty {
             <div class="empty-state">
-              <p>Nenhum pet encontrado</p>
+              <p>Nenhum pet cadastrado</p>
+              <p class="empty-hint">Os pets sao cadastrados pelos clientes no app</p>
             </div>
           }
         </div>
@@ -110,7 +110,7 @@ interface Cliente {
       <div class="modal-overlay" (click)="fecharModal()">
         <div class="modal-content" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3>{{ petEditando() ? 'Editar Pet' : 'Novo Pet' }}</h3>
+            <h3>Editar Pet</h3>
             <button class="btn-fechar" (click)="fecharModal()">×</button>
           </div>
 
@@ -337,6 +337,12 @@ interface Cliente {
       text-align: center;
       padding: 3rem;
       color: var(--cor-texto-suave);
+
+      .empty-hint {
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        opacity: 0.8;
+      }
     }
 
     .pagination {

@@ -117,7 +117,10 @@ const CATEGORIAS = [
 
             <div class="form-group">
               <label class="form-label">Nome do Servico *</label>
-              <input type="text" class="form-input" [(ngModel)]="form.nome" placeholder="Ex: Banho e Tosa">
+              <input type="text" class="form-input" [(ngModel)]="form.nome" placeholder="Ex: Banho e Tosa" minlength="2" maxlength="150">
+              @if (form.nome && form.nome.trim().length < 2) {
+                <span class="form-hint form-hint-error">Nome deve ter pelo menos 2 caracteres</span>
+              }
             </div>
 
             <div class="form-group">
@@ -477,6 +480,16 @@ const CATEGORIAS = [
       width: 16px;
       height: 16px;
     }
+
+    .form-hint {
+      display: block;
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+    }
+
+    .form-hint-error {
+      color: #dc2626;
+    }
   `]
 })
 export class ServicosComponent implements OnInit {
@@ -508,8 +521,10 @@ export class ServicosComponent implements OnInit {
   carregarServicos(): void {
     this.loading.set(true);
     this.api.getServicos().subscribe({
-      next: (res) => {
-        this.servicos.set(res.servicos || []);
+      next: (res: any) => {
+        // Backend retorna array diretamente ou { servicos: [...] }
+        const servicos = Array.isArray(res) ? res : (res.servicos || []);
+        this.servicos.set(servicos);
         this.loading.set(false);
       },
       error: () => {
@@ -576,7 +591,8 @@ export class ServicosComponent implements OnInit {
   podeGravar(): boolean {
     return !!(
       this.form.nome &&
-      this.form.duracaoMin > 0 &&
+      this.form.nome.trim().length >= 2 &&
+      this.form.duracaoMin >= 15 &&
       this.form.precoPequeno >= 0 &&
       this.form.precoMedio >= 0 &&
       this.form.precoGrande >= 0 &&
@@ -611,7 +627,13 @@ export class ServicosComponent implements OnInit {
       },
       error: (err) => {
         this.salvando.set(false);
-        this.modalErro.set(err.error?.error || 'Erro ao salvar servico');
+        // Tratar erros de validacao (array) ou erro simples (string)
+        if (err.error?.errors && Array.isArray(err.error.errors)) {
+          const msgs = err.error.errors.map((e: any) => e.msg).join(', ');
+          this.modalErro.set(msgs);
+        } else {
+          this.modalErro.set(err.error?.error || 'Erro ao salvar servico');
+        }
       }
     });
   }
