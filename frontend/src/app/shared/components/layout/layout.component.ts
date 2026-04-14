@@ -26,6 +26,10 @@ import { AuthService } from '@core/services/auth.service';
             <span class="nav-icon">🐾</span>
             <span class="nav-text">Pets</span>
           </a>
+          <a routerLink="/admin/servicos" routerLinkActive="active" class="nav-item">
+            <span class="nav-icon">✂️</span>
+            <span class="nav-text">Servicos</span>
+          </a>
           <a routerLink="/admin/financeiro" routerLinkActive="active" class="nav-item">
             <span class="nav-icon">💰</span>
             <span class="nav-text">Financeiro</span>

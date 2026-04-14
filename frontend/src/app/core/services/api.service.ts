@@ -177,4 +177,31 @@ export class ApiService {
   enviarMensagemCustom(telefone: string, mensagem: string): Observable<any> {
     return this.http.post(`${this.baseUrl}/whatsapp/enviar-custom`, { telefone, mensagem });
   }
+
+  // Tipos de Animais
+  getTiposAnimais(especie?: string): Observable<any> {
+    let httpParams = new HttpParams();
+    if (especie) httpParams = httpParams.set('especie', especie);
+    return this.http.get(`${this.baseUrl}/tipos-animais`, { params: httpParams });
+  }
+
+  getEspecies(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/tipos-animais/especies`);
+  }
+
+  getRacas(especie: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/tipos-animais/racas/${especie}`);
+  }
+
+  criarTipoAnimal(data: { especie: string; raca?: string }): Observable<any> {
+    return this.http.post(`${this.baseUrl}/tipos-animais`, data);
+  }
+
+  atualizarTipoAnimal(id: string, data: any): Observable<any> {
+    return this.http.put(`${this.baseUrl}/tipos-animais/${id}`, data);
+  }
+
+  deletarTipoAnimal(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/tipos-animais/${id}`);
+  }
 }

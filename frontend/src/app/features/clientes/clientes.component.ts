@@ -54,7 +54,7 @@ interface Cliente {
               @for (cliente of clientes(); track cliente.id) {
                 <tr>
                   <td>
-                    <a [routerLink]="['/clientes', cliente.id]" class="cliente-nome">
+                    <a [routerLink]="['/admin/clientes', cliente.id]" class="cliente-nome">
                       {{ cliente.nome }}
                     </a>
                   </td>
@@ -73,7 +73,7 @@ interface Cliente {
                   </td>
                   <td>
                     <div class="actions">
-                      <a [routerLink]="['/clientes', cliente.id]" class="btn btn-secondary btn-sm">Ver</a>
+                      <a [routerLink]="['/admin/clientes', cliente.id]" class="btn btn-secondary btn-sm">Ver</a>
                       <button class="btn btn-secondary btn-sm" (click)="editarCliente(cliente)">Editar</button>
                     </div>
                   </td>
@@ -110,6 +110,70 @@ interface Cliente {
         }
       }
     </div>
+
+    <!-- Modal de Cliente (Novo/Editar) -->
+    @if (modalAberto()) {
+      <div class="modal-overlay" (click)="fecharModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>{{ clienteEditando() ? 'Editar Cliente' : 'Novo Cliente' }}</h3>
+            <button class="btn-fechar" (click)="fecharModal()">×</button>
+          </div>
+
+          <div class="modal-body">
+            @if (modalErro()) {
+              <div class="alert alert-error">{{ modalErro() }}</div>
+            }
+
+            <div class="form-group">
+              <label class="form-label">Nome *</label>
+              <input type="text" class="form-input" [(ngModel)]="form.nome" placeholder="Nome completo">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Telefone *</label>
+              <input
+                type="tel"
+                class="form-input"
+                [(ngModel)]="form.telefone"
+                placeholder="(00) 00000-0000"
+                (input)="formatarTelefone($event)"
+              >
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-input" [(ngModel)]="form.email" placeholder="email@exemplo.com">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Endereco</label>
+              <input type="text" class="form-input" [(ngModel)]="form.endereco" placeholder="Endereco completo">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Observacoes</label>
+              <textarea class="form-input" [(ngModel)]="form.observacoes" rows="2" placeholder="Observacoes sobre o cliente"></textarea>
+            </div>
+
+            <div class="modal-actions">
+              <button class="btn btn-secondary" (click)="fecharModal()">Cancelar</button>
+              <button
+                class="btn btn-primary"
+                (click)="salvarCliente()"
+                [disabled]="salvando() || !form.nome || !form.telefone"
+              >
+                @if (salvando()) {
+                  <span class="spinner spinner-sm"></span>
+                } @else {
+                  {{ clienteEditando() ? 'Salvar' : 'Criar' }}
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     .page-container {
@@ -190,6 +254,97 @@ interface Cliente {
       gap: 1rem;
       margin-top: 1.5rem;
     }
+
+    // Modal
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 450px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--sombra-modal);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--cor-borda);
+
+      h3 {
+        margin: 0;
+        font-size: 1.125rem;
+      }
+    }
+
+    .btn-fechar {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--cor-texto-suave);
+      padding: 0;
+      line-height: 1;
+
+      &:hover {
+        color: var(--cor-texto);
+      }
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    textarea.form-input {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--cor-borda);
+    }
+
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+    }
+
+    .alert-error {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+    }
+
+    .spinner-sm {
+      width: 16px;
+      height: 16px;
+    }
   `]
 })
 export class ClientesComponent implements OnInit {
@@ -199,6 +354,19 @@ export class ClientesComponent implements OnInit {
   clientes = signal<Cliente[]>([]);
   pagination = signal({ page: 1, limit: 20, total: 0, totalPages: 0 });
   busca = '';
+
+  // Modal
+  modalAberto = signal(false);
+  clienteEditando = signal<Cliente | null>(null);
+  modalErro = signal('');
+  salvando = signal(false);
+  form = {
+    nome: '',
+    telefone: '',
+    email: '',
+    endereco: '',
+    observacoes: ''
+  };
 
   private buscaTimeout: any;
 
@@ -214,8 +382,10 @@ export class ClientesComponent implements OnInit {
       busca: this.busca || undefined
     }).subscribe({
       next: (res) => {
-        this.clientes.set(res.data);
-        this.pagination.set(res.pagination);
+        this.clientes.set(res.data || res.clientes || []);
+        if (res.pagination) {
+          this.pagination.set(res.pagination);
+        }
         this.loading.set(false);
       },
       error: () => {
@@ -247,12 +417,74 @@ export class ClientesComponent implements OnInit {
   }
 
   novoCliente(): void {
-    // TODO: Abrir modal de novo cliente
-    console.log('Novo cliente');
+    this.clienteEditando.set(null);
+    this.form = { nome: '', telefone: '', email: '', endereco: '', observacoes: '' };
+    this.modalErro.set('');
+    this.modalAberto.set(true);
   }
 
   editarCliente(cliente: Cliente): void {
-    // TODO: Abrir modal de edicao
-    console.log('Editar cliente', cliente);
+    this.clienteEditando.set(cliente);
+    this.form = {
+      nome: cliente.nome || '',
+      telefone: cliente.telefone || '',
+      email: cliente.email || '',
+      endereco: '',
+      observacoes: ''
+    };
+    this.modalErro.set('');
+    this.modalAberto.set(true);
+  }
+
+  fecharModal(): void {
+    this.modalAberto.set(false);
+    this.clienteEditando.set(null);
+  }
+
+  formatarTelefone(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    let valor = input.value.replace(/\D/g, '');
+
+    if (valor.length > 11) valor = valor.slice(0, 11);
+
+    if (valor.length > 6) {
+      valor = valor.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+    } else if (valor.length > 2) {
+      valor = valor.replace(/(\d{2})(\d{0,5})/, '($1) $2');
+    }
+
+    input.value = valor;
+    this.form.telefone = valor;
+  }
+
+  salvarCliente(): void {
+    if (!this.form.nome || !this.form.telefone) return;
+
+    this.salvando.set(true);
+    this.modalErro.set('');
+
+    const dados = {
+      nome: this.form.nome,
+      telefone: this.form.telefone,
+      email: this.form.email || undefined,
+      endereco: this.form.endereco || undefined,
+      observacoes: this.form.observacoes || undefined
+    };
+
+    const request = this.clienteEditando()
+      ? this.api.atualizarCliente(this.clienteEditando()!.id, dados)
+      : this.api.criarCliente(dados);
+
+    request.subscribe({
+      next: () => {
+        this.salvando.set(false);
+        this.fecharModal();
+        this.carregarClientes();
+      },
+      error: (err) => {
+        this.salvando.set(false);
+        this.modalErro.set(err.error?.error || 'Erro ao salvar cliente');
+      }
+    });
   }
 }

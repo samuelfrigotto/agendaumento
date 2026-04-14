@@ -87,7 +87,7 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
 
     .page-header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      padding: 1rem 2rem;
+      padding: 1rem;
     }
 
     .header-content {
@@ -100,7 +100,7 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
 
     .logo {
       font-family: var(--fonte-titulo);
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       color: white;
       text-decoration: none;
     }
@@ -108,10 +108,12 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.5rem;
 
       .user-name {
         color: rgba(255, 255, 255, 0.9);
+        font-size: 0.875rem;
+        display: none;
       }
 
       .btn-text {
@@ -119,7 +121,9 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
         background: transparent;
         border: none;
         cursor: pointer;
-        padding: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        min-height: 44px; // Touch-friendly
 
         &:hover {
           background: rgba(255, 255, 255, 0.1);
@@ -131,19 +135,27 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
     .page-content {
       max-width: 1000px;
       margin: 0 auto;
-      padding: 2rem;
+      padding: 1rem;
     }
 
     .page-title-row {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
     }
 
     .page-title {
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       color: var(--cor-texto);
+    }
+
+    .btn-primary {
+      text-align: center;
+      min-height: 48px; // Touch-friendly
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .loading-container {
@@ -154,7 +166,7 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
 
     .empty-state {
       text-align: center;
-      padding: 4rem 2rem;
+      padding: 3rem 1.5rem;
       background: white;
       border-radius: var(--radius-lg);
       box-shadow: var(--sombra-card);
@@ -173,13 +185,14 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
     .agendamentos-list {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0.75rem;
     }
 
     .agendamento-card {
       display: flex;
-      gap: 1.5rem;
-      padding: 1.5rem;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem;
       background: white;
       border-radius: var(--radius-md);
       box-shadow: var(--sombra-card);
@@ -192,11 +205,9 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
 
     .agendamento-data {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-width: 60px;
-      padding: 1rem;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
       background: var(--cor-primaria-suave);
       border-radius: var(--radius-md);
 
@@ -207,7 +218,7 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
       }
 
       .data-mes {
-        font-size: 0.75rem;
+        font-size: 0.875rem;
         color: var(--cor-primaria);
         text-transform: uppercase;
       }
@@ -217,12 +228,13 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
       flex: 1;
 
       .servico-nome {
-        font-size: 1.125rem;
+        font-size: 1rem;
         margin-bottom: 0.25rem;
       }
 
       .pet-nome {
         color: var(--cor-texto-suave);
+        font-size: 0.875rem;
         margin-bottom: 0.25rem;
       }
 
@@ -234,14 +246,15 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
 
     .agendamento-status {
       display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      justify-content: center;
+      justify-content: space-between;
+      align-items: center;
       gap: 0.5rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--cor-borda);
     }
 
     .status-badge {
-      padding: 0.25rem 0.75rem;
+      padding: 0.375rem 0.75rem;
       border-radius: var(--radius-full);
       font-size: 0.75rem;
       font-weight: 500;
@@ -275,15 +288,79 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
 
     .btn-danger {
       color: var(--cor-erro);
+      padding: 0.5rem 1rem;
+      min-height: 44px; // Touch-friendly
+      background: transparent;
+      border: none;
+      cursor: pointer;
 
       &:hover {
         background: #fef2f2;
+        border-radius: var(--radius-md);
       }
     }
 
     .spinner-sm {
       width: 16px;
       height: 16px;
+    }
+
+    // Tablet e Desktop
+    @media (min-width: 768px) {
+      .page-header {
+        padding: 1rem 2rem;
+      }
+
+      .logo {
+        font-size: 1.5rem;
+      }
+
+      .header-actions {
+        gap: 1rem;
+
+        .user-name {
+          display: block;
+        }
+      }
+
+      .page-content {
+        padding: 2rem;
+      }
+
+      .page-title-row {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .page-title {
+        font-size: 1.5rem;
+      }
+
+      .agendamentos-list {
+        gap: 1rem;
+      }
+
+      .agendamento-card {
+        flex-direction: row;
+        padding: 1.5rem;
+        gap: 1.5rem;
+      }
+
+      .agendamento-data {
+        flex-direction: column;
+        justify-content: center;
+        min-width: 60px;
+        padding: 1rem;
+      }
+
+      .agendamento-status {
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+        border-top: none;
+        padding-top: 0;
+      }
     }
   `]
 })

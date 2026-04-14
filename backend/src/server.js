@@ -15,6 +15,7 @@ const servicosRoutes = require('./modules/servicos/servicos.routes');
 const agendamentosRoutes = require('./modules/agendamentos/agendamentos.routes');
 const financeiroRoutes = require('./modules/financeiro/financeiro.routes');
 const whatsappRoutes = require('./modules/whatsapp/whatsapp.routes');
+const tiposAnimaisRoutes = require('./modules/tiposAnimais/tiposAnimais.routes');
 
 // Rotas para area do cliente
 const publicRoutes = require('./modules/public/public.routes');
@@ -63,6 +64,7 @@ app.use('/api/servicos', servicosRoutes);
 app.use('/api/agendamentos', agendamentosRoutes);
 app.use('/api/financeiro', financeiroRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/tipos-animais', tiposAnimaisRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

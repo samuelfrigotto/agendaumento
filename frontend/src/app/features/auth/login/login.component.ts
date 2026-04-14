@@ -1,13 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule],
   template: `
     <div class="auth-container">
       <div class="auth-card">
@@ -63,10 +63,6 @@ import { AuthService } from '@core/services/auth.service';
           </button>
         </form>
 
-        <div class="auth-footer">
-          <p>Ainda nao tem conta?</p>
-          <a routerLink="/admin/registro" class="auth-link">Criar conta gratis</a>
-        </div>
       </div>
     </div>
   `,
@@ -77,6 +73,7 @@ import { AuthService } from '@core/services/auth.service';
       align-items: center;
       justify-content: center;
       padding: 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 
     .auth-card {
@@ -105,7 +102,7 @@ import { AuthService } from '@core/services/auth.service';
     }
 
     .auth-form {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1rem;
     }
 
     .btn-block {
@@ -124,22 +121,6 @@ import { AuthService } from '@core/services/auth.service';
       background-color: #fef2f2;
       color: var(--cor-erro);
       border: 1px solid #fecaca;
-    }
-
-    .auth-footer {
-      text-align: center;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--cor-borda);
-
-      p {
-        color: var(--cor-texto-suave);
-        font-size: 0.875rem;
-        margin-bottom: 0.5rem;
-      }
-    }
-
-    .auth-link {
-      font-weight: 600;
     }
   `]
 })

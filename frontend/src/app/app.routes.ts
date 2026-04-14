@@ -38,10 +38,6 @@ export const routes: Routes = [
     path: 'admin/login',
     loadComponent: () => import('./features/auth/login/login.component').then(m => m.LoginComponent)
   },
-  {
-    path: 'admin/registro',
-    loadComponent: () => import('./features/auth/registro/registro.component').then(m => m.RegistroComponent)
-  },
 
   // Admin - Area protegida
   {
@@ -73,6 +69,10 @@ export const routes: Routes = [
       {
         path: 'pets/:id',
         loadComponent: () => import('./features/pets/pet-detalhe/pet-detalhe.component').then(m => m.PetDetalheComponent)
+      },
+      {
+        path: 'servicos',
+        loadComponent: () => import('./features/servicos/servicos.component').then(m => m.ServicosComponent)
       },
       {
         path: 'financeiro',

@@ -14,6 +14,14 @@ interface BookingIntent {
   hora: string;
 }
 
+interface Pet {
+  id: string;
+  nome: string;
+  especie: string;
+  raca?: string;
+  tamanho?: string;
+}
+
 @Component({
   selector: 'app-agendar',
   standalone: true,
@@ -33,6 +41,29 @@ interface BookingIntent {
       </header>
 
       <main class="agendar-content">
+        <!-- Indicador de progresso -->
+        <div class="progress-indicator">
+          <div class="progress-step" [class.active]="step() >= 1" [class.completed]="step() > 1">
+            <span class="step-number">1</span>
+            <span class="step-label">Servico</span>
+          </div>
+          <div class="progress-line" [class.completed]="step() > 1"></div>
+          <div class="progress-step" [class.active]="step() >= 2" [class.completed]="step() > 2">
+            <span class="step-number">2</span>
+            <span class="step-label">Data</span>
+          </div>
+          <div class="progress-line" [class.completed]="step() > 2"></div>
+          <div class="progress-step" [class.active]="step() >= 3" [class.completed]="step() > 3">
+            <span class="step-number">3</span>
+            <span class="step-label">Horario</span>
+          </div>
+          <div class="progress-line" [class.completed]="step() > 3"></div>
+          <div class="progress-step" [class.active]="step() >= 4">
+            <span class="step-number">4</span>
+            <span class="step-label">Confirmar</span>
+          </div>
+        </div>
+
         <!-- Step 1: Servicos -->
         @if (step() === 1) {
           <section class="step-section">
@@ -51,9 +82,12 @@ interface BookingIntent {
                     [class.selected]="servicoSelecionado()?.id === servico.id"
                     (click)="selecionarServico(servico)"
                   >
-                    <h3 class="servico-nome">{{ servico.nome }}</h3>
-                    <p class="servico-duracao">{{ servico.duracaoMin }} minutos</p>
-                    <p class="servico-preco">A partir de R$ {{ servico.precoPequeno | number:'1.2-2' }}</p>
+                    <span class="servico-icon">{{ getServicoIcon(servico.nome) }}</span>
+                    <div class="servico-info">
+                      <h3 class="servico-nome">{{ servico.nome }}</h3>
+                      <p class="servico-duracao">{{ servico.duracaoMin }} minutos</p>
+                    </div>
+                    <p class="servico-preco">R$ {{ servico.precoPequeno | number:'1.0-0' }}+</p>
                   </div>
                 }
               </div>
@@ -68,19 +102,21 @@ interface BookingIntent {
             <h2 class="step-title">Escolha a data</h2>
             <p class="step-subtitle">{{ servicoSelecionado()?.nome }} - {{ servicoSelecionado()?.duracaoMin }} min</p>
 
-            <div class="calendario-grid">
-              @for (dia of proximosDias(); track dia.data) {
-                <button
-                  class="dia-btn"
-                  [class.selected]="dataSelecionada() === dia.data"
-                  [class.hoje]="dia.isHoje"
-                  (click)="selecionarData(dia.data)"
-                >
-                  <span class="dia-semana">{{ dia.diaSemana }}</span>
-                  <span class="dia-numero">{{ dia.diaNumero }}</span>
-                  <span class="dia-mes">{{ dia.mes }}</span>
-                </button>
-              }
+            <div class="calendario-scroll">
+              <div class="calendario-grid">
+                @for (dia of proximosDias(); track dia.data) {
+                  <button
+                    class="dia-btn"
+                    [class.selected]="dataSelecionada() === dia.data"
+                    [class.hoje]="dia.isHoje"
+                    (click)="selecionarData(dia.data)"
+                  >
+                    <span class="dia-semana">{{ dia.diaSemana }}</span>
+                    <span class="dia-numero">{{ dia.diaNumero }}</span>
+                    <span class="dia-mes">{{ dia.mes }}</span>
+                  </button>
+                }
+              </div>
             </div>
           </section>
         }
@@ -99,6 +135,7 @@ interface BookingIntent {
             } @else {
               @if (slots().length === 0) {
                 <div class="empty-slots">
+                  <span class="empty-icon">📅</span>
                   <p>Nenhum horario disponivel nesta data</p>
                   <button class="btn btn-outline" (click)="voltarStep()">Escolher outra data</button>
                 </div>
@@ -150,21 +187,109 @@ interface BookingIntent {
 
             @if (sucesso()) {
               <div class="alert alert-success">
+                <span class="success-icon">✓</span>
                 <p>Agendamento realizado com sucesso!</p>
                 <a routerLink="/meus-agendamentos" class="btn btn-primary">Ver meus agendamentos</a>
               </div>
             } @else {
-              <button
-                class="btn btn-primary btn-block"
-                (click)="confirmar()"
-                [disabled]="loadingConfirmar()"
-              >
-                @if (loadingConfirmar()) {
-                  <span class="spinner"></span>
+              <!-- Selecao de Pet -->
+              @if (clienteAuth.isLoggedIn()) {
+                @if (loadingPets()) {
+                  <div class="loading-pets">
+                    <span class="spinner"></span>
+                    <span>Carregando seus pets...</span>
+                  </div>
+                } @else if (pets().length === 0) {
+                  <!-- Formulario de cadastro de pet -->
+                  <div class="cadastro-pet">
+                    <h3>Cadastre seu pet</h3>
+                    <p class="cadastro-pet-info">Para agendar, voce precisa cadastrar seu pet</p>
+
+                    <div class="form-group">
+                      <label class="form-label">Nome do pet *</label>
+                      <input type="text" class="form-input" [(ngModel)]="novoPet.nome" placeholder="Nome do seu pet">
+                    </div>
+
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label class="form-label">Especie *</label>
+                        <select class="form-input" [(ngModel)]="novoPet.especie">
+                          <option value="">Selecione</option>
+                          <option value="cachorro">Cachorro</option>
+                          <option value="gato">Gato</option>
+                          <option value="ave">Ave</option>
+                          <option value="roedor">Roedor</option>
+                          <option value="outro">Outro</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Tamanho</label>
+                        <select class="form-input" [(ngModel)]="novoPet.tamanho">
+                          <option value="">Selecione</option>
+                          <option value="pequeno">Pequeno</option>
+                          <option value="medio">Medio</option>
+                          <option value="grande">Grande</option>
+                          <option value="gigante">Gigante</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Raca</label>
+                      <input type="text" class="form-input" [(ngModel)]="novoPet.raca" placeholder="Raca (opcional)">
+                    </div>
+
+                    <button
+                      class="btn btn-primary btn-block"
+                      (click)="cadastrarPetEAgendar()"
+                      [disabled]="loadingConfirmar() || !novoPet.nome || !novoPet.especie"
+                    >
+                      @if (loadingConfirmar()) {
+                        <span class="spinner"></span>
+                      } @else {
+                        Cadastrar e Agendar
+                      }
+                    </button>
+                  </div>
                 } @else {
-                  Confirmar Agendamento
+                  <!-- Selecao de pet existente -->
+                  <div class="selecao-pet">
+                    <h3>Selecione o pet</h3>
+                    <div class="pets-grid">
+                      @for (pet of pets(); track pet.id) {
+                        <button
+                          class="pet-btn"
+                          [class.selected]="petSelecionado()?.id === pet.id"
+                          (click)="selecionarPet(pet)"
+                        >
+                          <span class="pet-icon">{{ getEspecieIcon(pet.especie) }}</span>
+                          <span class="pet-nome">{{ pet.nome }}</span>
+                          <span class="pet-info">{{ pet.raca || pet.especie }}</span>
+                        </button>
+                      }
+                    </div>
+
+                    <button
+                      class="btn btn-primary btn-block"
+                      (click)="confirmarAgendamento()"
+                      [disabled]="loadingConfirmar() || !petSelecionado()"
+                    >
+                      @if (loadingConfirmar()) {
+                        <span class="spinner"></span>
+                      } @else {
+                        Confirmar Agendamento
+                      }
+                    </button>
+                  </div>
                 }
-              </button>
+              } @else {
+                <button
+                  class="btn btn-primary btn-block"
+                  (click)="confirmar()"
+                >
+                  Entrar para Confirmar
+                </button>
+              }
             }
           </section>
         }
@@ -181,14 +306,14 @@ interface BookingIntent {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1rem 2rem;
+      padding: 1rem;
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(10px);
     }
 
     .logo {
       font-family: var(--fonte-titulo);
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       color: white;
     }
 
@@ -199,6 +324,8 @@ interface BookingIntent {
       .btn-outline {
         color: white;
         border-color: white;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
 
         &:hover {
           background: white;
@@ -211,7 +338,8 @@ interface BookingIntent {
         background: transparent;
         border: none;
         cursor: pointer;
-        padding: 0.5rem 1rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
 
         &:hover {
           background: rgba(255, 255, 255, 0.1);
@@ -223,13 +351,72 @@ interface BookingIntent {
     .agendar-content {
       max-width: 800px;
       margin: 0 auto;
-      padding: 2rem;
+      padding: 1rem;
+    }
+
+    // Progress indicator
+    .progress-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+      padding: 0 1rem;
+    }
+
+    .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .step-label {
+      font-size: 0.625rem;
+      color: rgba(255, 255, 255, 0.7);
+      text-transform: uppercase;
+    }
+
+    .progress-step.active .step-number {
+      background: white;
+      color: var(--cor-primaria);
+    }
+
+    .progress-step.completed .step-number {
+      background: #10b981;
+      color: white;
+    }
+
+    .progress-line {
+      flex: 1;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.3);
+      margin: 0 0.5rem;
+      max-width: 60px;
+      transition: all 0.3s;
+    }
+
+    .progress-line.completed {
+      background: #10b981;
     }
 
     .step-section {
       background: white;
       border-radius: var(--radius-lg);
-      padding: 2rem;
+      padding: 1.5rem;
       box-shadow: var(--sombra-modal);
     }
 
@@ -240,6 +427,8 @@ interface BookingIntent {
       cursor: pointer;
       margin-bottom: 1rem;
       font-size: 0.875rem;
+      padding: 0.5rem 0;
+      min-height: 44px;
 
       &:hover {
         color: var(--cor-primaria);
@@ -247,14 +436,15 @@ interface BookingIntent {
     }
 
     .step-title {
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       color: var(--cor-texto);
       margin-bottom: 0.5rem;
     }
 
     .step-subtitle {
       color: var(--cor-texto-suave);
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
     }
 
     .loading-container {
@@ -263,65 +453,103 @@ interface BookingIntent {
       padding: 3rem;
     }
 
+    // Servicos grid
     .servicos-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
     }
 
     .servico-card {
-      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
       border: 2px solid var(--cor-borda);
       border-radius: var(--radius-md);
       cursor: pointer;
       transition: all 0.2s;
+      min-height: 72px;
 
       &:hover {
         border-color: var(--cor-primaria);
-        transform: translateY(-2px);
+        background: var(--cor-primaria-suave);
+      }
+
+      &:active {
+        transform: scale(0.98);
       }
 
       &.selected {
         border-color: var(--cor-primaria);
         background: var(--cor-primaria-suave);
       }
+    }
 
-      .servico-nome {
-        font-size: 1.125rem;
-        margin-bottom: 0.5rem;
-      }
+    .servico-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
 
-      .servico-duracao {
-        color: var(--cor-texto-suave);
-        font-size: 0.875rem;
-        margin-bottom: 0.25rem;
-      }
+    .servico-info {
+      flex: 1;
+    }
 
-      .servico-preco {
-        color: var(--cor-primaria);
-        font-weight: 600;
+    .servico-nome {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.125rem;
+    }
+
+    .servico-duracao {
+      color: var(--cor-texto-suave);
+      font-size: 0.8rem;
+      margin: 0;
+    }
+
+    .servico-preco {
+      font-weight: 700;
+      color: var(--cor-primaria);
+      font-size: 1rem;
+      margin: 0;
+    }
+
+    // Calendario
+    .calendario-scroll {
+      overflow-x: auto;
+      margin: 0 -1.5rem;
+      padding: 0 1.5rem 0.5rem;
+      -webkit-overflow-scrolling: touch;
+
+      &::-webkit-scrollbar {
+        display: none;
       }
     }
 
     .calendario-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-      gap: 0.75rem;
+      display: flex;
+      gap: 0.5rem;
     }
 
     .dia-btn {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 1rem 0.5rem;
+      padding: 0.75rem;
+      min-width: 70px;
       border: 2px solid var(--cor-borda);
       border-radius: var(--radius-md);
       background: white;
       cursor: pointer;
       transition: all 0.2s;
+      flex-shrink: 0;
 
       &:hover {
         border-color: var(--cor-primaria);
+      }
+
+      &:active {
+        transform: scale(0.95);
       }
 
       &.selected {
@@ -339,40 +567,47 @@ interface BookingIntent {
       }
 
       .dia-semana {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         color: var(--cor-texto-suave);
         text-transform: uppercase;
       }
 
       .dia-numero {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
         font-weight: 600;
-        margin: 0.25rem 0;
+        margin: 0.125rem 0;
       }
 
       .dia-mes {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         color: var(--cor-texto-suave);
       }
     }
 
+    // Slots
     .slots-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      grid-template-columns: repeat(3, 1fr);
       gap: 0.5rem;
     }
 
     .slot-btn {
-      padding: 0.75rem 1rem;
+      padding: 1rem 0.5rem;
       border: 2px solid var(--cor-borda);
       border-radius: var(--radius-md);
       background: white;
       cursor: pointer;
       font-weight: 500;
+      font-size: 1rem;
       transition: all 0.2s;
+      min-height: 52px;
 
       &:hover {
         border-color: var(--cor-primaria);
+      }
+
+      &:active {
+        transform: scale(0.95);
       }
 
       &.selected {
@@ -384,18 +619,25 @@ interface BookingIntent {
 
     .empty-slots {
       text-align: center;
-      padding: 2rem;
+      padding: 2rem 1rem;
       color: var(--cor-texto-suave);
+
+      .empty-icon {
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 1rem;
+      }
 
       p {
         margin-bottom: 1rem;
       }
     }
 
+    // Resumo
     .resumo-card {
       background: var(--cor-fundo);
       border-radius: var(--radius-md);
-      padding: 1.5rem;
+      padding: 1rem;
       margin-bottom: 1.5rem;
     }
 
@@ -411,13 +653,116 @@ interface BookingIntent {
 
       .resumo-label {
         color: var(--cor-texto-suave);
+        font-size: 0.875rem;
       }
 
       .resumo-value {
         font-weight: 500;
+        text-align: right;
       }
     }
 
+    // Selecao de pet
+    .selecao-pet, .cadastro-pet {
+      h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: var(--cor-texto);
+      }
+    }
+
+    .pets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .pet-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 1rem;
+      border: 2px solid var(--cor-borda);
+      border-radius: var(--radius-md);
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: 100px;
+
+      &:hover {
+        border-color: var(--cor-primaria);
+      }
+
+      &.selected {
+        border-color: var(--cor-primaria);
+        background: var(--cor-primaria-suave);
+      }
+    }
+
+    .pet-icon {
+      font-size: 2rem;
+    }
+
+    .pet-nome {
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .pet-info {
+      font-size: 0.75rem;
+      color: var(--cor-texto-suave);
+    }
+
+    .loading-pets {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 1.5rem;
+      color: var(--cor-texto-suave);
+      font-size: 0.875rem;
+    }
+
+    // Cadastro de pet
+    .cadastro-pet-info {
+      color: var(--cor-texto-suave);
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.375rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--cor-borda);
+      border-radius: var(--radius-md);
+      font-size: 16px; // Evita zoom no iOS
+
+      &:focus {
+        outline: none;
+        border-color: var(--cor-primaria);
+      }
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    // Alerts
     .alert {
       padding: 1rem;
       border-radius: var(--radius-md);
@@ -436,14 +781,109 @@ interface BookingIntent {
       border: 1px solid #86efac;
       text-align: center;
 
+      .success-icon {
+        display: block;
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+      }
+
       p {
         margin-bottom: 1rem;
+        font-weight: 500;
       }
     }
 
     .btn-block {
       width: 100%;
       padding: 1rem;
+      font-size: 1rem;
+      min-height: 52px;
+    }
+
+    // Tablet e Desktop
+    @media (min-width: 768px) {
+      .agendar-header {
+        padding: 1rem 2rem;
+      }
+
+      .logo {
+        font-size: 1.5rem;
+      }
+
+      .agendar-content {
+        padding: 2rem;
+      }
+
+      .progress-indicator {
+        margin-bottom: 2rem;
+      }
+
+      .step-number {
+        width: 36px;
+        height: 36px;
+        font-size: 0.875rem;
+      }
+
+      .step-label {
+        font-size: 0.75rem;
+      }
+
+      .progress-line {
+        max-width: 100px;
+      }
+
+      .step-section {
+        padding: 2rem;
+      }
+
+      .step-title {
+        font-size: 1.5rem;
+      }
+
+      .servicos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1rem;
+      }
+
+      .servico-card {
+        flex-direction: column;
+        text-align: center;
+        padding: 1.5rem;
+        min-height: 140px;
+      }
+
+      .servico-icon {
+        font-size: 2.5rem;
+      }
+
+      .servico-info {
+        flex: none;
+      }
+
+      .calendario-scroll {
+        overflow-x: visible;
+        margin: 0;
+        padding: 0;
+      }
+
+      .calendario-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        overflow-x: visible;
+      }
+
+      .dia-btn {
+        min-width: auto;
+      }
+
+      .slots-grid {
+        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      }
+
+      .pets-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      }
     }
   `]
 })
@@ -463,6 +903,12 @@ export class AgendarComponent implements OnInit {
 
   slots = signal<TimeSlot[]>([]);
   loadingSlots = signal(false);
+
+  // Pets
+  pets = signal<Pet[]>([]);
+  loadingPets = signal(false);
+  petSelecionado = signal<Pet | null>(null);
+  novoPet = { nome: '', especie: '', raca: '', tamanho: '' };
 
   loadingConfirmar = signal(false);
   error = signal('');
@@ -492,7 +938,6 @@ export class AgendarComponent implements OnInit {
       const data: BookingIntent = JSON.parse(intent);
       sessionStorage.removeItem('booking_intent');
 
-      // Restaurar estado e ir para confirmacao
       this.publicApi.getServicos().subscribe(res => {
         const servico = res.servicos.find(s => s.id === data.servicoId);
         if (servico) {
@@ -500,6 +945,7 @@ export class AgendarComponent implements OnInit {
           this.dataSelecionada.set(data.data);
           this.slotSelecionado.set({ hora: data.hora, dataHora: data.dataHora });
           this.step.set(4);
+          this.carregarPets();
         }
       });
     }
@@ -533,6 +979,28 @@ export class AgendarComponent implements OnInit {
     return data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
+  getServicoIcon(nome: string): string {
+    const lower = nome.toLowerCase();
+    if (lower.includes('banho') || lower.includes('tosa')) return '🛁';
+    if (lower.includes('consult')) return '🩺';
+    if (lower.includes('vacin')) return '💉';
+    if (lower.includes('exame')) return '🔬';
+    if (lower.includes('cirurg')) return '🏥';
+    if (lower.includes('dent')) return '🦷';
+    return '🐾';
+  }
+
+  getEspecieIcon(especie: string): string {
+    const icons: Record<string, string> = {
+      'cachorro': '🐕',
+      'gato': '🐱',
+      'ave': '🦜',
+      'roedor': '🐹',
+      'reptil': '🦎'
+    };
+    return icons[especie?.toLowerCase()] || '🐾';
+  }
+
   selecionarServico(servico: Servico) {
     this.servicoSelecionado.set(servico);
     this.step.set(2);
@@ -544,7 +1012,7 @@ export class AgendarComponent implements OnInit {
     this.step.set(3);
   }
 
-  private carregarSlots() {
+  carregarSlots() {
     const servico = this.servicoSelecionado();
     if (!servico) return;
 
@@ -564,15 +1032,39 @@ export class AgendarComponent implements OnInit {
   selecionarSlot(slot: TimeSlot) {
     this.slotSelecionado.set(slot);
     this.step.set(4);
+    if (this.clienteAuth.isLoggedIn()) {
+      this.carregarPets();
+    }
   }
 
   voltarStep() {
+    this.error.set('');
     this.step.update(s => Math.max(1, s - 1));
+  }
+
+  private carregarPets() {
+    this.loadingPets.set(true);
+    this.clienteApi.getPets().subscribe({
+      next: (res) => {
+        this.pets.set(res.pets || []);
+        if (res.pets && res.pets.length === 1) {
+          this.petSelecionado.set(res.pets[0]);
+        }
+        this.loadingPets.set(false);
+      },
+      error: () => {
+        this.pets.set([]);
+        this.loadingPets.set(false);
+      }
+    });
+  }
+
+  selecionarPet(pet: Pet) {
+    this.petSelecionado.set(pet);
   }
 
   confirmar() {
     if (!this.clienteAuth.isLoggedIn()) {
-      // Salvar intent e redirecionar para login
       const intent: BookingIntent = {
         servicoId: this.servicoSelecionado()!.id,
         dataHora: this.slotSelecionado()!.dataHora,
@@ -585,23 +1077,37 @@ export class AgendarComponent implements OnInit {
       return;
     }
 
-    // Verificar se tem pets cadastrados
-    this.clienteApi.getPets().subscribe({
-      next: (res) => {
-        if (res.pets.length === 0) {
-          // TODO: mostrar modal para cadastrar pet
-          this.error.set('Voce precisa cadastrar um pet primeiro. Essa funcionalidade sera adicionada em breve.');
-          return;
-        }
+    this.carregarPets();
+  }
 
-        // Por enquanto, usar o primeiro pet
-        const pet = res.pets[0];
-        this.criarAgendamento(pet.id);
+  cadastrarPetEAgendar() {
+    if (!this.novoPet.nome || !this.novoPet.especie) return;
+
+    this.loadingConfirmar.set(true);
+    this.error.set('');
+
+    this.clienteApi.criarPet({
+      nome: this.novoPet.nome,
+      especie: this.novoPet.especie,
+      raca: this.novoPet.raca || undefined,
+      tamanho: this.novoPet.tamanho || undefined
+    }).subscribe({
+      next: (res) => {
+        this.criarAgendamento(res.id);
       },
       error: (err) => {
-        this.error.set(err.error?.error || 'Erro ao verificar pets');
+        this.loadingConfirmar.set(false);
+        this.error.set(err.error?.error || 'Erro ao cadastrar pet');
       }
     });
+  }
+
+  confirmarAgendamento() {
+    if (!this.petSelecionado()) {
+      this.error.set('Selecione um pet para continuar');
+      return;
+    }
+    this.criarAgendamento(this.petSelecionado()!.id);
   }
 
   private criarAgendamento(petId: string) {
@@ -619,7 +1125,15 @@ export class AgendarComponent implements OnInit {
       },
       error: (err) => {
         this.loadingConfirmar.set(false);
-        this.error.set(err.error?.error || 'Erro ao criar agendamento');
+
+        if (err.status === 409) {
+          this.error.set('Este horario acabou de ser reservado. Por favor, escolha outro horario.');
+          this.slotSelecionado.set(null);
+          this.step.set(3);
+          this.carregarSlots();
+        } else {
+          this.error.set(err.error?.error || 'Erro ao criar agendamento');
+        }
       }
     });
   }

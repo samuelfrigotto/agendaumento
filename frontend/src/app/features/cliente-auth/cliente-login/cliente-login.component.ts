@@ -68,11 +68,6 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
           <p>Ainda nao tem conta?</p>
           <a [routerLink]="['/registro']" [queryParams]="{ returnUrl: returnUrl }" class="auth-link">Criar conta</a>
         </div>
-
-        <div class="admin-link">
-          <p>E dono de um estabelecimento?</p>
-          <a routerLink="/admin/login" class="auth-link">Acesse aqui</a>
-        </div>
       </div>
     </div>
   `,
@@ -92,7 +87,7 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
       background: var(--cor-fundo-card);
       border-radius: var(--radius-lg);
       box-shadow: var(--sombra-modal);
-      padding: 2.5rem;
+      padding: 2rem;
     }
 
     .back-link {
@@ -109,27 +104,38 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
 
     .auth-header {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
     }
 
     .auth-title {
       font-family: var(--fonte-titulo);
-      font-size: 1.75rem;
+      font-size: 1.5rem;
       color: var(--cor-texto);
       margin-bottom: 0.5rem;
     }
 
     .auth-subtitle {
       color: var(--cor-texto-suave);
+      font-size: 0.875rem;
     }
 
     .auth-form {
       margin-bottom: 1.5rem;
     }
 
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-input {
+      font-size: 16px; // Evita zoom no iOS
+    }
+
     .btn-block {
       width: 100%;
       padding: 1rem;
+      font-size: 1rem;
+      min-height: 48px; // Touch-friendly
     }
 
     .alert {
@@ -161,20 +167,10 @@ import { ClienteAuthService } from '@core/services/cliente-auth.service';
       font-weight: 600;
     }
 
-    .admin-link {
-      text-align: center;
-      margin-top: 1.5rem;
-      padding-top: 1rem;
-      border-top: 1px dashed var(--cor-borda);
-
-      p {
-        color: var(--cor-texto-suave);
-        font-size: 0.75rem;
-        margin-bottom: 0.25rem;
-      }
-
-      .auth-link {
-        font-size: 0.875rem;
+    @media (max-width: 480px) {
+      .auth-card {
+        padding: 1.5rem;
+        margin: 0 0.5rem;
       }
     }
   `]

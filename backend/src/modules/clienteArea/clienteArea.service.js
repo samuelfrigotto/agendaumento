@@ -1,4 +1,4 @@
-const { query } = require('../../config/database');
+const { query, getClient } = require('../../config/database');
 const { AppError } = require('../../middlewares/errorHandler');
 
 const formatarAgendamento = (a) => ({
@@ -90,50 +90,67 @@ const criarAgendamento = async (clienteId, banhistaId, dados) => {
   else if (pet.tamanho === 'grande') preco = servico.preco_grande;
   else if (pet.tamanho === 'gigante') preco = servico.preco_gigante;
 
-  // Verificar disponibilidade do horario
   const dataHora = new Date(dados.dataHora);
   const dataFim = new Date(dataHora);
   dataFim.setMinutes(dataFim.getMinutes() + servico.duracao_min);
 
-  const conflitoCheck = await query(
-    `SELECT id FROM agendamentos
-     WHERE banhista_id = $1
-       AND status != 'cancelado'
-       AND (
-         (data_hora <= $2 AND data_hora + (duracao_min || ' minutes')::interval > $2)
-         OR (data_hora < $3 AND data_hora + (duracao_min || ' minutes')::interval >= $3)
-         OR (data_hora >= $2 AND data_hora + (duracao_min || ' minutes')::interval <= $3)
-       )`,
-    [banhistaId, dataHora.toISOString(), dataFim.toISOString()]
-  );
+  // Usar transacao com SELECT FOR UPDATE para evitar race condition
+  const client = await getClient();
 
-  if (conflitoCheck.rows.length > 0) {
-    throw new AppError('Horario nao disponivel', 409);
+  try {
+    await client.query('BEGIN');
+
+    // Bloquear registros de agendamentos que possam conflitar (FOR UPDATE)
+    const conflitoCheck = await client.query(
+      `SELECT id FROM agendamentos
+       WHERE banhista_id = $1
+         AND status != 'cancelado'
+         AND (
+           (data_hora <= $2 AND data_hora + (duracao_min || ' minutes')::interval > $2)
+           OR (data_hora < $3 AND data_hora + (duracao_min || ' minutes')::interval >= $3)
+           OR (data_hora >= $2 AND data_hora + (duracao_min || ' minutes')::interval <= $3)
+         )
+       FOR UPDATE`,
+      [banhistaId, dataHora.toISOString(), dataFim.toISOString()]
+    );
+
+    if (conflitoCheck.rows.length > 0) {
+      await client.query('ROLLBACK');
+      throw new AppError('Este horario acabou de ser reservado por outro cliente. Por favor, escolha outro horario.', 409);
+    }
+
+    // Criar agendamento dentro da transacao
+    const result = await client.query(
+      `INSERT INTO agendamentos (banhista_id, pet_id, cliente_id, servico_id, data_hora, duracao_min, preco, observacoes, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'agendado')
+       RETURNING *`,
+      [banhistaId, dados.petId, clienteId, dados.servicoId, dados.dataHora, servico.duracao_min, preco, dados.observacoes || null]
+    );
+
+    await client.query('COMMIT');
+
+    const agendamento = result.rows[0];
+
+    // Buscar dados completos (fora da transacao)
+    const sql = `
+      SELECT a.*,
+             p.nome as pet_nome, p.raca as pet_raca, p.tamanho as pet_tamanho,
+             s.nome as servico_nome
+      FROM agendamentos a
+      LEFT JOIN pets p ON p.id = a.pet_id
+      LEFT JOIN servicos s ON s.id = a.servico_id
+      WHERE a.id = $1
+    `;
+
+    const resultFinal = await query(sql, [agendamento.id]);
+    return formatarAgendamento(resultFinal.rows[0]);
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
-
-  // Criar agendamento
-  const result = await query(
-    `INSERT INTO agendamentos (banhista_id, pet_id, cliente_id, servico_id, data_hora, duracao_min, preco, observacoes, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'agendado')
-     RETURNING *`,
-    [banhistaId, dados.petId, clienteId, dados.servicoId, dados.dataHora, servico.duracao_min, preco, dados.observacoes || null]
-  );
-
-  const agendamento = result.rows[0];
-
-  // Buscar dados completos
-  const sql = `
-    SELECT a.*,
-           p.nome as pet_nome, p.raca as pet_raca, p.tamanho as pet_tamanho,
-           s.nome as servico_nome
-    FROM agendamentos a
-    LEFT JOIN pets p ON p.id = a.pet_id
-    LEFT JOIN servicos s ON s.id = a.servico_id
-    WHERE a.id = $1
-  `;
-
-  const resultFinal = await query(sql, [agendamento.id]);
-  return formatarAgendamento(resultFinal.rows[0]);
 };
 
 const cancelarAgendamento = async (clienteId, agendamentoId) => {
