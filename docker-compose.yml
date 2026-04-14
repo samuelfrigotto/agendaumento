@@ -1,0 +1,95 @@
+# ============================================
+# AGENDAUMENTO - Docker Compose
+# Sistema de Agenda para Banho e Tosa
+# ============================================
+
+services:
+  # ============================================
+  # BANCO DE DADOS POSTGRESQL
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: agendaumento-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-agendaumento}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no .env}
+      POSTGRES_DB: ${DB_NAME:-agendaumento_db}
+      TZ: America/Sao_Paulo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - agendaumento-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-agendaumento} -d ${DB_NAME:-agendaumento_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # BACKEND API (Node.js)
+  # ============================================
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agendaumento-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+
+      # Banco de Dados
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-agendaumento}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-agendaumento_db}
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+
+      # WhatsApp (Evolution API)
+      WHATSAPP_API_URL: ${WHATSAPP_API_URL:-http://evolution:8080}
+      WHATSAPP_API_KEY: ${WHATSAPP_API_KEY:-}
+      WHATSAPP_INSTANCE_NAME: ${WHATSAPP_INSTANCE_NAME:-agendaumento}
+
+      # Frontend URL (CORS)
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
+
+      # Timezone
+      TZ: America/Sao_Paulo
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - agendaumento-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ============================================
+# VOLUMES (Dados Persistentes)
+# ============================================
+volumes:
+  postgres_data:
+    name: agendaumento-postgres-data
+  uploads_data:
+    name: agendaumento-uploads
+
+# ============================================
+# REDE
+# ============================================
+networks:
+  agendaumento-network:
+    name: agendaumento-network
+    driver: bridge

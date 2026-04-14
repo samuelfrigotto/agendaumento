@@ -1,0 +1,34 @@
+# Dependencias
+node_modules/
+
+# Ambiente
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Build
+dist/
+build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Docker volumes locais
+postgres_data/

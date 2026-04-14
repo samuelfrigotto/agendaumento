@@ -1,0 +1,34 @@
+# Dependencias
+node_modules
+npm-debug.log
+
+# Ambiente
+.env
+.env.local
+.env.*.local
+
+# Arquivos de desenvolvimento
+.git
+.gitignore
+.vscode
+*.md
+Dockerfile
+docker-compose*.yml
+
+# Testes
+coverage
+.nyc_output
+*.test.js
+*.spec.js
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Uploads locais (usar volume)
+uploads/*
+!uploads/.gitkeep
