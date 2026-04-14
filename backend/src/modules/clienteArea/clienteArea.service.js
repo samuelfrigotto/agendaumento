@@ -101,9 +101,11 @@ const criarAgendamento = async (clienteId, banhistaId, dados) => {
     await client.query('BEGIN');
 
     // Bloquear registros de agendamentos que possam conflitar (FOR UPDATE)
+    // Permite servicos diferentes no mesmo horario, mas nao o mesmo servico
     const conflitoCheck = await client.query(
       `SELECT id FROM agendamentos
        WHERE banhista_id = $1
+         AND servico_id = $4
          AND status != 'cancelado'
          AND (
            (data_hora <= $2 AND data_hora + (duracao_min || ' minutes')::interval > $2)
@@ -111,12 +113,12 @@ const criarAgendamento = async (clienteId, banhistaId, dados) => {
            OR (data_hora >= $2 AND data_hora + (duracao_min || ' minutes')::interval <= $3)
          )
        FOR UPDATE`,
-      [banhistaId, dataHora.toISOString(), dataFim.toISOString()]
+      [banhistaId, dataHora.toISOString(), dataFim.toISOString(), dados.servicoId]
     );
 
     if (conflitoCheck.rows.length > 0) {
       await client.query('ROLLBACK');
-      throw new AppError('Este horario acabou de ser reservado por outro cliente. Por favor, escolha outro horario.', 409);
+      throw new AppError('Este servico ja esta agendado neste horario. Por favor, escolha outro horario.', 409);
     }
 
     // Criar agendamento dentro da transacao

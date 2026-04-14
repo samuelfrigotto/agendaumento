@@ -5,7 +5,7 @@ const listar = async (banhistaId, especie = null) => {
   let sql = `
     SELECT id, especie, raca, ativo
     FROM tipos_animais
-    WHERE banhista_id = $1
+    WHERE banhista_id = $1 AND ativo = true
   `;
   const params = [banhistaId];
 

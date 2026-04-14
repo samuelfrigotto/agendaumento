@@ -23,11 +23,12 @@ export class ApiService {
   }
 
   // Clientes
-  getClientes(params?: { page?: number; limit?: number; busca?: string }): Observable<any> {
+  getClientes(params?: { page?: number; limit?: number; busca?: string; autocadastro?: boolean }): Observable<any> {
     let httpParams = new HttpParams();
     if (params?.page) httpParams = httpParams.set('page', params.page.toString());
     if (params?.limit) httpParams = httpParams.set('limit', params.limit.toString());
     if (params?.busca) httpParams = httpParams.set('busca', params.busca);
+    if (params?.autocadastro !== undefined) httpParams = httpParams.set('autocadastro', params.autocadastro.toString());
 
     return this.http.get(`${this.baseUrl}/clientes`, { params: httpParams });
   }

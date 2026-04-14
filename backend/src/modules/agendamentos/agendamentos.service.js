@@ -16,6 +16,7 @@ const formatarAgendamento = (a) => ({
   pet: a.pet_id ? {
     id: a.pet_id,
     nome: a.pet_nome,
+    especie: a.pet_especie,
     raca: a.pet_raca,
     tamanho: a.pet_tamanho,
     fotoUrl: a.pet_foto_url,
@@ -36,7 +37,7 @@ const formatarAgendamento = (a) => ({
 const listar = async (banhistaId, filtros) => {
   let sql = `
     SELECT a.*,
-           p.nome as pet_nome, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
+           p.nome as pet_nome, p.especie as pet_especie, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
            c.nome as cliente_nome, c.telefone as cliente_telefone,
            s.nome as servico_nome
     FROM agendamentos a
@@ -81,7 +82,7 @@ const listar = async (banhistaId, filtros) => {
 const listarHoje = async (banhistaId) => {
   const sql = `
     SELECT a.*,
-           p.nome as pet_nome, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
+           p.nome as pet_nome, p.especie as pet_especie, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
            c.nome as cliente_nome, c.telefone as cliente_telefone,
            s.nome as servico_nome
     FROM agendamentos a
@@ -109,7 +110,7 @@ const listarSemana = async (banhistaId, dataBase) => {
 
   const sql = `
     SELECT a.*,
-           p.nome as pet_nome, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
+           p.nome as pet_nome, p.especie as pet_especie, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
            c.nome as cliente_nome, c.telefone as cliente_telefone,
            s.nome as servico_nome
     FROM agendamentos a
@@ -157,7 +158,7 @@ const criar = async (banhistaId, dados) => {
 const buscarPorId = async (banhistaId, agendamentoId) => {
   const sql = `
     SELECT a.*,
-           p.nome as pet_nome, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
+           p.nome as pet_nome, p.especie as pet_especie, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
            c.nome as cliente_nome, c.telefone as cliente_telefone,
            s.nome as servico_nome
     FROM agendamentos a

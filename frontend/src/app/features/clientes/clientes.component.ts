@@ -9,8 +9,10 @@ interface Cliente {
   nome: string;
   telefone: string;
   email?: string;
+  emailAuth?: string;
   qtdPets: number;
   ultimoAgendamento?: string;
+  autocadastro?: boolean;
 }
 
 @Component({
@@ -24,14 +26,18 @@ interface Cliente {
         <button class="btn btn-primary" (click)="novoCliente()">+ Novo Cliente</button>
       </header>
 
-      <div class="search-bar">
+      <div class="filtros-bar">
         <input
           type="text"
-          class="form-input"
+          class="form-input search-input"
           placeholder="Buscar por nome ou telefone..."
           [(ngModel)]="busca"
           (input)="onBuscar()"
         >
+        <label class="filtro-checkbox">
+          <input type="checkbox" [(ngModel)]="filtroAutocadastro" (change)="onFiltroChange()">
+          <span>Apenas cadastrados pelo app</span>
+        </label>
       </div>
 
       @if (loading()) {
@@ -57,6 +63,9 @@ interface Cliente {
                     <a [routerLink]="['/admin/clientes', cliente.id]" class="cliente-nome">
                       {{ cliente.nome }}
                     </a>
+                    @if (cliente.autocadastro) {
+                      <span class="badge badge-app" title="Cadastrado pelo app">APP</span>
+                    }
                   </td>
                   <td>
                     <a [href]="'https://wa.me/55' + cliente.telefone.replace(/\\D/g, '')" target="_blank" class="telefone-link">
@@ -191,8 +200,47 @@ interface Cliente {
       margin: 0;
     }
 
-    .search-bar {
+    .filtros-bar {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
       margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+
+      .search-input {
+        flex: 1;
+        min-width: 200px;
+      }
+    }
+
+    .filtro-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--cor-texto-suave);
+      cursor: pointer;
+      white-space: nowrap;
+
+      input {
+        cursor: pointer;
+      }
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.125rem 0.375rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.625rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+
+    .badge-app {
+      background: #dbeafe;
+      color: #1d4ed8;
     }
 
     .loading-container {
@@ -354,6 +402,7 @@ export class ClientesComponent implements OnInit {
   clientes = signal<Cliente[]>([]);
   pagination = signal({ page: 1, limit: 20, total: 0, totalPages: 0 });
   busca = '';
+  filtroAutocadastro = false;
 
   // Modal
   modalAberto = signal(false);
@@ -379,7 +428,8 @@ export class ClientesComponent implements OnInit {
     this.api.getClientes({
       page: this.pagination().page,
       limit: this.pagination().limit,
-      busca: this.busca || undefined
+      busca: this.busca || undefined,
+      autocadastro: this.filtroAutocadastro || undefined
     }).subscribe({
       next: (res) => {
         this.clientes.set(res.data || res.clientes || []);
@@ -400,6 +450,11 @@ export class ClientesComponent implements OnInit {
       this.pagination.update(p => ({ ...p, page: 1 }));
       this.carregarClientes();
     }, 300);
+  }
+
+  onFiltroChange(): void {
+    this.pagination.update(p => ({ ...p, page: 1 }));
+    this.carregarClientes();
   }
 
   paginaAnterior(): void {

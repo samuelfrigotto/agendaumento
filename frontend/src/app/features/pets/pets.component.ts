@@ -155,20 +155,40 @@ interface Cliente {
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Especie *</label>
-                <select class="form-input" [(ngModel)]="form.especie">
+                <select class="form-input" [(ngModel)]="form.especie" (ngModelChange)="onEspecieChange($event)">
                   <option value="">Selecione...</option>
-                  <option value="cachorro">Cachorro</option>
-                  <option value="gato">Gato</option>
-                  <option value="ave">Ave</option>
-                  <option value="roedor">Roedor</option>
-                  <option value="reptil">Reptil</option>
-                  <option value="outro">Outro</option>
+                  @for (esp of especiesDisponiveis(); track esp) {
+                    <option [value]="esp">{{ esp | titlecase }}</option>
+                  }
                 </select>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Raca</label>
-                <input type="text" class="form-input" [(ngModel)]="form.raca" placeholder="Raca do pet">
+                @if (loadingRacas()) {
+                  <div class="form-input loading-racas">
+                    <span class="spinner spinner-sm"></span>
+                    <span>Carregando...</span>
+                  </div>
+                } @else if (racasDisponiveis().length > 0) {
+                  <select class="form-input" [(ngModel)]="form.raca">
+                    <option value="">Selecione...</option>
+                    @for (raca of racasDisponiveis(); track raca) {
+                      <option [value]="raca">{{ raca }}</option>
+                    }
+                    <option value="__outro__">Outra (digitar)</option>
+                  </select>
+                  @if (form.raca === '__outro__') {
+                    <input
+                      type="text"
+                      class="form-input mt-1"
+                      [(ngModel)]="racaCustom"
+                      placeholder="Digite a raca"
+                    >
+                  }
+                } @else {
+                  <input type="text" class="form-input" [(ngModel)]="form.raca" placeholder="Raca do pet">
+                }
               </div>
             </div>
 
@@ -482,6 +502,18 @@ interface Cliente {
       width: 16px;
       height: 16px;
     }
+
+    .loading-racas {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--cor-texto-suave);
+      background: var(--cor-fundo);
+    }
+
+    .mt-1 {
+      margin-top: 0.5rem;
+    }
   `]
 })
 export class PetsComponent implements OnInit {
@@ -510,11 +542,50 @@ export class PetsComponent implements OnInit {
   clientesBusca = signal<Cliente[]>([]);
   clienteSelecionado = signal<Cliente | null>(null);
 
+  // Especies e racas
+  especiesDisponiveis = signal<string[]>([]);
+  racasDisponiveis = signal<string[]>([]);
+  loadingRacas = signal(false);
+  racaCustom = '';
+
   private buscaTimeout: any;
   private buscaClienteTimeout: any;
 
   ngOnInit(): void {
     this.carregarPets();
+    this.carregarEspecies();
+  }
+
+  carregarEspecies(): void {
+    this.api.getEspecies().subscribe({
+      next: (res) => {
+        this.especiesDisponiveis.set(res.especies || []);
+      },
+      error: () => {
+        // Fallback para especies padrao
+        this.especiesDisponiveis.set(['cachorro', 'gato', 'ave', 'roedor', 'reptil', 'outro']);
+      }
+    });
+  }
+
+  onEspecieChange(especie: string): void {
+    this.form.raca = '';
+    this.racaCustom = '';
+    this.racasDisponiveis.set([]);
+
+    if (!especie) return;
+
+    this.loadingRacas.set(true);
+    this.api.getRacas(especie).subscribe({
+      next: (res) => {
+        this.racasDisponiveis.set(res.racas || []);
+        this.loadingRacas.set(false);
+      },
+      error: () => {
+        this.racasDisponiveis.set([]);
+        this.loadingRacas.set(false);
+      }
+    });
   }
 
   carregarPets(): void {
@@ -575,6 +646,8 @@ export class PetsComponent implements OnInit {
     this.clienteSelecionado.set(null);
     this.buscaCliente = '';
     this.clientesBusca.set([]);
+    this.racasDisponiveis.set([]);
+    this.racaCustom = '';
     this.modalErro.set('');
     this.modalAberto.set(true);
   }
@@ -591,8 +664,31 @@ export class PetsComponent implements OnInit {
     this.clienteSelecionado.set(pet.cliente);
     this.buscaCliente = '';
     this.clientesBusca.set([]);
+    this.racaCustom = '';
     this.modalErro.set('');
     this.modalAberto.set(true);
+
+    // Carregar racas da especie atual
+    if (pet.especie) {
+      this.loadingRacas.set(true);
+      this.api.getRacas(pet.especie).subscribe({
+        next: (res) => {
+          const racas = res.racas || [];
+          this.racasDisponiveis.set(racas);
+          this.loadingRacas.set(false);
+
+          // Se a raca atual nao esta na lista, usar campo customizado
+          if (pet.raca && !racas.includes(pet.raca)) {
+            this.racaCustom = pet.raca;
+            this.form.raca = '__outro__';
+          }
+        },
+        error: () => {
+          this.racasDisponiveis.set([]);
+          this.loadingRacas.set(false);
+        }
+      });
+    }
   }
 
   fecharModal(): void {
@@ -636,10 +732,13 @@ export class PetsComponent implements OnInit {
     this.salvando.set(true);
     this.modalErro.set('');
 
+    // Se selecionou "Outra", usa o valor digitado
+    const raca = this.form.raca === '__outro__' ? this.racaCustom : this.form.raca;
+
     const dados = {
       nome: this.form.nome,
       especie: this.form.especie,
-      raca: this.form.raca || undefined,
+      raca: raca || undefined,
       tamanho: this.form.tamanho || undefined,
       observacoes: this.form.observacoes || undefined,
       clienteId: this.clienteSelecionado()!.id

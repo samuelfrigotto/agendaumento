@@ -12,7 +12,7 @@ interface Agendamento {
   preco: number;
   status: string;
   observacoes?: string;
-  pet: { id: string; nome: string; fotoUrl?: string };
+  pet: { id: string; nome: string; fotoUrl?: string; especie?: string };
   cliente: { id: string; nome: string; telefone: string };
   servico?: { id: string; nome: string };
 }
@@ -47,6 +47,22 @@ interface Servico {
           <h2 class="header-title">{{ tituloSemana() }}</h2>
           <button class="btn btn-secondary" (click)="proximaSemana()">►</button>
           <button class="btn btn-secondary ml-2" (click)="irParaHoje()">Hoje</button>
+        </div>
+        <div class="header-filtros">
+          <select class="form-input filtro-select" [(ngModel)]="filtroEspecie" (change)="aplicarFiltros()">
+            <option value="">Todas especies</option>
+            <option value="cachorro">Cachorro</option>
+            <option value="gato">Gato</option>
+            <option value="ave">Ave</option>
+            <option value="roedor">Roedor</option>
+            <option value="outro">Outro</option>
+          </select>
+          <select class="form-input filtro-select" [(ngModel)]="filtroServico" (change)="aplicarFiltros()">
+            <option value="">Todos servicos</option>
+            @for (servico of servicosDisponiveis(); track servico.id) {
+              <option [value]="servico.id">{{ servico.nome }}</option>
+            }
+          </select>
         </div>
         <button class="btn btn-primary" (click)="novoAgendamento()">+ Novo Agendamento</button>
       </header>
@@ -357,6 +373,17 @@ interface Servico {
 
     .ml-2 {
       margin-left: 0.5rem;
+    }
+
+    .header-filtros {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .filtro-select {
+      min-width: 140px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
     }
 
     .loading-container {
@@ -758,7 +785,13 @@ export class AgendaComponent implements OnInit {
 
   loading = signal(true);
   agendamentos = signal<Agendamento[]>([]);
+  agendamentosFiltrados = signal<Agendamento[]>([]);
   dataBase = signal(new Date());
+
+  // Filtros
+  filtroEspecie = '';
+  filtroServico = '';
+  servicosDisponiveis = signal<Servico[]>([]);
 
   // Modal de detalhes
   modalAberto = signal(false);
@@ -797,6 +830,31 @@ export class AgendaComponent implements OnInit {
 
   ngOnInit(): void {
     this.carregarAgendamentos();
+    this.carregarServicosDisponiveis();
+  }
+
+  carregarServicosDisponiveis(): void {
+    this.api.getServicos().subscribe({
+      next: (res) => {
+        this.servicosDisponiveis.set(res.servicos || []);
+      }
+    });
+  }
+
+  aplicarFiltros(): void {
+    let filtrados = this.agendamentos();
+
+    if (this.filtroEspecie) {
+      filtrados = filtrados.filter(a =>
+        a.pet?.especie?.toLowerCase() === this.filtroEspecie.toLowerCase()
+      );
+    }
+
+    if (this.filtroServico) {
+      filtrados = filtrados.filter(a => a.servico?.id === this.filtroServico);
+    }
+
+    this.agendamentosFiltrados.set(filtrados);
   }
 
   diasSemana() {
@@ -827,6 +885,7 @@ export class AgendaComponent implements OnInit {
     this.api.getAgendamentosSemana(this.dataBase().toISOString()).subscribe({
       next: (res) => {
         this.agendamentos.set(res.agendamentos || []);
+        this.aplicarFiltros();
         this.loading.set(false);
       },
       error: () => {
@@ -836,7 +895,7 @@ export class AgendaComponent implements OnInit {
   }
 
   getAgendamentosDoDia(data: Date): Agendamento[] {
-    return this.agendamentos().filter(a => isSameDay(new Date(a.dataHora), data));
+    return this.agendamentosFiltrados().filter(a => isSameDay(new Date(a.dataHora), data));
   }
 
   calcularTop(agendamento: Agendamento): number {

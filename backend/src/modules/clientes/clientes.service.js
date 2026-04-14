@@ -1,10 +1,10 @@
 const { query } = require('../../config/database');
 const { AppError } = require('../../middlewares/errorHandler');
 
-const listar = async (banhistaId, { page, limit, busca }) => {
+const listar = async (banhistaId, { page, limit, busca, apenasAutocadastro }) => {
   const offset = (page - 1) * limit;
   let sql = `
-    SELECT c.id, c.nome, c.telefone, c.email, c.observacoes, c.criado_em,
+    SELECT c.id, c.nome, c.telefone, c.email, c.email_auth, c.observacoes, c.criado_em,
            COUNT(p.id) as qtd_pets,
            MAX(a.data_hora) as ultimo_agendamento
     FROM clientes c
@@ -13,6 +13,11 @@ const listar = async (banhistaId, { page, limit, busca }) => {
     WHERE c.banhista_id = $1
   `;
   const params = [banhistaId];
+
+  // Filtrar apenas clientes que se cadastraram pelo app (tem email_auth)
+  if (apenasAutocadastro) {
+    sql += ' AND c.email_auth IS NOT NULL';
+  }
 
   if (busca) {
     sql += ` AND (c.nome ILIKE $${params.length + 1} OR c.telefone ILIKE $${params.length + 1})`;
@@ -31,8 +36,11 @@ const listar = async (banhistaId, { page, limit, busca }) => {
   // Contar total
   let countSql = 'SELECT COUNT(*) FROM clientes WHERE banhista_id = $1';
   const countParams = [banhistaId];
+  if (apenasAutocadastro) {
+    countSql += ' AND email_auth IS NOT NULL';
+  }
   if (busca) {
-    countSql += ' AND (nome ILIKE $2 OR telefone ILIKE $2)';
+    countSql += ` AND (nome ILIKE $${countParams.length + 1} OR telefone ILIKE $${countParams.length + 1})`;
     countParams.push(`%${busca}%`);
   }
   const countResult = await query(countSql, countParams);
@@ -43,10 +51,12 @@ const listar = async (banhistaId, { page, limit, busca }) => {
       nome: c.nome,
       telefone: c.telefone,
       email: c.email,
+      emailAuth: c.email_auth,
       observacoes: c.observacoes,
       qtdPets: parseInt(c.qtd_pets),
       ultimoAgendamento: c.ultimo_agendamento,
-      criadoEm: c.criado_em
+      criadoEm: c.criado_em,
+      autocadastro: !!c.email_auth
     })),
     pagination: {
       page,

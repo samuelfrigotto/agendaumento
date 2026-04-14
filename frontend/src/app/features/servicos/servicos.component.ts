@@ -120,20 +120,9 @@ const CATEGORIAS = [
               <input type="text" class="form-input" [(ngModel)]="form.nome" placeholder="Ex: Banho e Tosa">
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Categoria *</label>
-                <select class="form-input" [(ngModel)]="form.categoria">
-                  @for (cat of categorias; track cat.value) {
-                    <option [value]="cat.value">{{ cat.icon }} {{ cat.label }}</option>
-                  }
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Duracao (min) *</label>
-                <input type="number" class="form-input" [(ngModel)]="form.duracaoMin" min="15" step="15">
-              </div>
+            <div class="form-group">
+              <label class="form-label">Duracao (min) *</label>
+              <input type="number" class="form-input" [(ngModel)]="form.duracaoMin" min="15" step="15">
             </div>
 
             <h4 class="section-title">Precos por Tamanho</h4>
@@ -141,19 +130,31 @@ const CATEGORIAS = [
             <div class="precos-form">
               <div class="form-group">
                 <label class="form-label">Pequeno *</label>
-                <input type="number" class="form-input" [(ngModel)]="form.precoPequeno" min="0" step="5">
+                <div class="input-with-prefix">
+                  <span class="input-prefix">R$</span>
+                  <input type="number" class="form-input" [(ngModel)]="form.precoPequeno" min="0" step="5">
+                </div>
               </div>
               <div class="form-group">
                 <label class="form-label">Medio *</label>
-                <input type="number" class="form-input" [(ngModel)]="form.precoMedio" min="0" step="5">
+                <div class="input-with-prefix">
+                  <span class="input-prefix">R$</span>
+                  <input type="number" class="form-input" [(ngModel)]="form.precoMedio" min="0" step="5">
+                </div>
               </div>
               <div class="form-group">
                 <label class="form-label">Grande *</label>
-                <input type="number" class="form-input" [(ngModel)]="form.precoGrande" min="0" step="5">
+                <div class="input-with-prefix">
+                  <span class="input-prefix">R$</span>
+                  <input type="number" class="form-input" [(ngModel)]="form.precoGrande" min="0" step="5">
+                </div>
               </div>
               <div class="form-group">
                 <label class="form-label">Gigante *</label>
-                <input type="number" class="form-input" [(ngModel)]="form.precoGigante" min="0" step="5">
+                <div class="input-with-prefix">
+                  <span class="input-prefix">R$</span>
+                  <input type="number" class="form-input" [(ngModel)]="form.precoGigante" min="0" step="5">
+                </div>
               </div>
             </div>
 
@@ -420,6 +421,36 @@ const CATEGORIAS = [
       gap: 1rem;
     }
 
+    .input-with-prefix {
+      display: flex;
+      align-items: center;
+      background: white;
+      border: 1px solid var(--cor-borda);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+
+      &:focus-within {
+        border-color: var(--cor-primaria);
+      }
+
+      .input-prefix {
+        padding: 0.75rem;
+        background: var(--cor-fundo);
+        color: var(--cor-texto-suave);
+        font-weight: 500;
+        border-right: 1px solid var(--cor-borda);
+      }
+
+      .form-input {
+        border: none;
+        flex: 1;
+
+        &:focus {
+          outline: none;
+        }
+      }
+    }
+
     .modal-actions {
       display: flex;
       justify-content: flex-end;
@@ -545,7 +576,6 @@ export class ServicosComponent implements OnInit {
   podeGravar(): boolean {
     return !!(
       this.form.nome &&
-      this.form.categoria &&
       this.form.duracaoMin > 0 &&
       this.form.precoPequeno >= 0 &&
       this.form.precoMedio >= 0 &&
@@ -562,7 +592,6 @@ export class ServicosComponent implements OnInit {
 
     const dados = {
       nome: this.form.nome,
-      categoria: this.form.categoria,
       duracaoMin: this.form.duracaoMin,
       precoPequeno: this.form.precoPequeno,
       precoMedio: this.form.precoMedio,

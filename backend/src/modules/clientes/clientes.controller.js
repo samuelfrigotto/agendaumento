@@ -3,11 +3,12 @@ const clientesService = require('./clientes.service');
 
 const listar = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, busca } = req.query;
+    const { page = 1, limit = 20, busca, autocadastro } = req.query;
     const clientes = await clientesService.listar(req.banhistaId, {
       page: parseInt(page),
       limit: parseInt(limit),
-      busca
+      busca,
+      apenasAutocadastro: autocadastro === 'true'
     });
     res.json(clientes);
   } catch (error) {
