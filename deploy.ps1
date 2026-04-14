@@ -1,14 +1,24 @@
 # ============================================
-# AGENDAUMENTO - Script de Deploy
+# AGENDAUMENTO - Script de Deploy Completo
 # ============================================
 # Uso: .\deploy.ps1
 # Ou com mensagem: .\deploy.ps1 -m "minha mensagem de commit"
+# Apenas backend: .\deploy.ps1 -backend
+# Apenas frontend: .\deploy.ps1 -frontend
 # ============================================
 
 param(
     [Alias("m")]
-    [string]$Message = "deploy: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    [string]$Message = "deploy: $(Get-Date -Format 'yyyy-MM-dd HH:mm')",
+    [switch]$backend,
+    [switch]$frontend
 )
+
+# Se nenhum flag especificado, faz deploy de tudo
+if (-not $backend -and -not $frontend) {
+    $backend = $true
+    $frontend = $true
+}
 
 # Configuracoes
 $VPS_USER = "agendaumento"
@@ -28,7 +38,7 @@ Write-Host "========================================" -ForegroundColor Yellow
 # ============================================
 # PASSO 1: Git - Commit e Push
 # ============================================
-Write-Step "1/4 - Salvando no GitHub..."
+Write-Step "1/5 - Salvando no GitHub..."
 
 git add .
 if ($LASTEXITCODE -ne 0) {
@@ -49,38 +59,63 @@ else {
 }
 
 # ============================================
-# PASSO 2: Criar pasta no VPS (se nao existir)
+# PASSO 2: Build do Frontend (se necessario)
 # ============================================
-Write-Step "2/4 - Preparando VPS..."
+if ($frontend) {
+    Write-Step "2/5 - Build do Frontend (Angular)..."
 
-ssh "${VPS_USER}@${VPS_IP}" "mkdir -p ${VPS_PATH}/backend"
-Write-Success "Pasta criada/verificada!"
+    Push-Location ./frontend
+    npm run build
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Erro no build do frontend"
+        Pop-Location
+        exit 1
+    }
+    Pop-Location
+    Write-Success "Frontend compilado!"
+}
+else {
+    Write-Step "2/5 - Build do Frontend... PULADO"
+}
 
 # ============================================
-# PASSO 3: Enviar arquivos via SCP
+# PASSO 3: Preparar VPS
 # ============================================
-Write-Step "3/4 - Enviando arquivos para VPS..."
+Write-Step "3/5 - Preparando VPS..."
 
-# Backend (pasta inteira)
-Write-Host "  Enviando backend..." -ForegroundColor Gray
-scp -r ./backend/* "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
+ssh "${VPS_USER}@${VPS_IP}" "mkdir -p ${VPS_PATH}/backend ${VPS_PATH}/frontend"
+Write-Success "Pastas criadas/verificadas!"
 
-# Docker Compose
-Write-Host "  Enviando docker-compose.yml..." -ForegroundColor Gray
-scp ./docker-compose.yml "${VPS_USER}@${VPS_IP}:${VPS_PATH}/"
+# ============================================
+# PASSO 4: Enviar arquivos via SCP
+# ============================================
+Write-Step "4/5 - Enviando arquivos para VPS..."
 
-# .env.example (template)
-Write-Host "  Enviando .env.example..." -ForegroundColor Gray
-scp ./.env.example "${VPS_USER}@${VPS_IP}:${VPS_PATH}/"
+if ($backend) {
+    Write-Host "  Enviando backend..." -ForegroundColor Gray
+    scp -r ./backend/* "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
+
+    Write-Host "  Enviando docker-compose.yml..." -ForegroundColor Gray
+    scp ./docker-compose.yml "${VPS_USER}@${VPS_IP}:${VPS_PATH}/"
+
+    Write-Host "  Enviando .env.example..." -ForegroundColor Gray
+    scp ./.env.example "${VPS_USER}@${VPS_IP}:${VPS_PATH}/"
+}
+
+if ($frontend) {
+    Write-Host "  Enviando frontend..." -ForegroundColor Gray
+    scp -r ./frontend/dist/agendaumento/browser/* "${VPS_USER}@${VPS_IP}:${VPS_PATH}/frontend/"
+}
 
 Write-Success "Arquivos enviados!"
 
 # ============================================
-# PASSO 4: Rebuild no VPS
+# PASSO 5: Rebuild no VPS (se backend)
 # ============================================
-Write-Step "4/4 - Reconstruindo containers..."
+if ($backend) {
+    Write-Step "5/5 - Reconstruindo containers..."
 
-ssh "${VPS_USER}@${VPS_IP}" @"
+    ssh "${VPS_USER}@${VPS_IP}" @"
 cd ${VPS_PATH}
 
 # Verificar se .env existe
@@ -102,9 +137,13 @@ echo '=== Status dos containers ==='
 docker compose ps
 "@
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Erro no rebuild. Verifique os logs com: ssh ${VPS_USER}@${VPS_IP} 'cd ${VPS_PATH} && docker compose logs'"
-    exit 1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Erro no rebuild. Verifique os logs com: ssh ${VPS_USER}@${VPS_IP} 'cd ${VPS_PATH} && docker compose logs'"
+        exit 1
+    }
+}
+else {
+    Write-Step "5/5 - Rebuild containers... PULADO (apenas frontend)"
 }
 
 # ============================================
@@ -115,7 +154,8 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "   Deploy concluido com sucesso!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "API rodando em: http://${VPS_IP}:3000" -ForegroundColor Cyan
+Write-Host "Site: https://agendaumento.couriersknowledge.com" -ForegroundColor Cyan
+Write-Host "API:  https://agendaumento.couriersknowledge.com/api/health" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Comandos uteis:" -ForegroundColor Gray
 Write-Host "  Ver logs:    ssh ${VPS_USER}@${VPS_IP} 'cd ${VPS_PATH} && docker compose logs -f'" -ForegroundColor Gray

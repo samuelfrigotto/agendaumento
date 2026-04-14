@@ -14,23 +14,23 @@ import { AuthService } from '@core/services/auth.service';
         </div>
 
         <nav class="sidebar-nav">
-          <a routerLink="/agenda" routerLinkActive="active" class="nav-item">
+          <a routerLink="/admin/agenda" routerLinkActive="active" class="nav-item">
             <span class="nav-icon">📅</span>
             <span class="nav-text">Agenda</span>
           </a>
-          <a routerLink="/clientes" routerLinkActive="active" class="nav-item">
+          <a routerLink="/admin/clientes" routerLinkActive="active" class="nav-item">
             <span class="nav-icon">👥</span>
             <span class="nav-text">Clientes</span>
           </a>
-          <a routerLink="/pets" routerLinkActive="active" class="nav-item">
+          <a routerLink="/admin/pets" routerLinkActive="active" class="nav-item">
             <span class="nav-icon">🐾</span>
             <span class="nav-text">Pets</span>
           </a>
-          <a routerLink="/financeiro" routerLinkActive="active" class="nav-item">
+          <a routerLink="/admin/financeiro" routerLinkActive="active" class="nav-item">
             <span class="nav-icon">💰</span>
             <span class="nav-text">Financeiro</span>
           </a>
-          <a routerLink="/configuracoes" routerLinkActive="active" class="nav-item">
+          <a routerLink="/admin/configuracoes" routerLinkActive="active" class="nav-item">
             <span class="nav-icon">⚙️</span>
             <span class="nav-text">Configuracoes</span>
           </a>

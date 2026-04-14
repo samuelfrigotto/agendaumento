@@ -1,19 +1,20 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '@core/services/auth.service';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
+import { ClienteAuthService } from '@core/services/cliente-auth.service';
 
 @Component({
-  selector: 'app-login',
+  selector: 'app-cliente-login',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   template: `
     <div class="auth-container">
       <div class="auth-card">
         <div class="auth-header">
-          <h1 class="auth-title">Agendaumento</h1>
-          <p class="auth-subtitle">Entre na sua conta</p>
+          <a routerLink="/agendar" class="back-link">← Voltar</a>
+          <h1 class="auth-title">Entrar</h1>
+          <p class="auth-subtitle">Acesse sua conta para agendar</p>
         </div>
 
         <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
@@ -65,7 +66,12 @@ import { AuthService } from '@core/services/auth.service';
 
         <div class="auth-footer">
           <p>Ainda nao tem conta?</p>
-          <a routerLink="/admin/registro" class="auth-link">Criar conta gratis</a>
+          <a [routerLink]="['/registro']" [queryParams]="{ returnUrl: returnUrl }" class="auth-link">Criar conta</a>
+        </div>
+
+        <div class="admin-link">
+          <p>E dono de um estabelecimento?</p>
+          <a routerLink="/admin/login" class="auth-link">Acesse aqui</a>
         </div>
       </div>
     </div>
@@ -77,6 +83,7 @@ import { AuthService } from '@core/services/auth.service';
       align-items: center;
       justify-content: center;
       padding: 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 
     .auth-card {
@@ -88,6 +95,18 @@ import { AuthService } from '@core/services/auth.service';
       padding: 2.5rem;
     }
 
+    .back-link {
+      display: inline-block;
+      color: var(--cor-texto-suave);
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      text-decoration: none;
+
+      &:hover {
+        color: var(--cor-primaria);
+      }
+    }
+
     .auth-header {
       text-align: center;
       margin-bottom: 2rem;
@@ -95,8 +114,8 @@ import { AuthService } from '@core/services/auth.service';
 
     .auth-title {
       font-family: var(--fonte-titulo);
-      font-size: 2rem;
-      color: var(--cor-primaria);
+      font-size: 1.75rem;
+      color: var(--cor-texto);
       margin-bottom: 0.5rem;
     }
 
@@ -141,12 +160,30 @@ import { AuthService } from '@core/services/auth.service';
     .auth-link {
       font-weight: 600;
     }
+
+    .admin-link {
+      text-align: center;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--cor-borda);
+
+      p {
+        color: var(--cor-texto-suave);
+        font-size: 0.75rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .auth-link {
+        font-size: 0.875rem;
+      }
+    }
   `]
 })
-export class LoginComponent {
+export class ClienteLoginComponent implements OnInit {
   private fb = inject(FormBuilder);
-  private authService = inject(AuthService);
+  private clienteAuth = inject(ClienteAuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   form: FormGroup = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -155,6 +192,11 @@ export class LoginComponent {
 
   loading = signal(false);
   error = signal('');
+  returnUrl = '/agendar';
+
+  ngOnInit() {
+    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/agendar';
+  }
 
   onSubmit(): void {
     if (this.form.invalid) return;
@@ -162,9 +204,9 @@ export class LoginComponent {
     this.loading.set(true);
     this.error.set('');
 
-    this.authService.login(this.form.value).subscribe({
+    this.clienteAuth.login(this.form.value).subscribe({
       next: () => {
-        this.router.navigate(['/admin/agenda']);
+        this.router.navigateByUrl(this.returnUrl);
       },
       error: (err) => {
         this.loading.set(false);

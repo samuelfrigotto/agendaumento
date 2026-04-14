@@ -55,9 +55,9 @@ import { AuthService } from '@core/services/auth.service';
                   <span class="servico-duracao">{{ servico.duracaoMin }} min</span>
                 </div>
                 <div class="servico-precos">
-                  <span>P: R${{ servico.precoPequeno || 0 }}</span>
-                  <span>M: R${{ servico.precoMedio || 0 }}</span>
-                  <span>G: R${{ servico.precoGrande || 0 }}</span>
+                  <span>P: R$ {{ servico.precoPequeno || 0 }}</span>
+                  <span>M: R$ {{ servico.precoMedio || 0 }}</span>
+                  <span>G: R$ {{ servico.precoGrande || 0 }}</span>
                 </div>
               </div>
             } @empty {

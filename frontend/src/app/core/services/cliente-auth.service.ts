@@ -4,59 +4,57 @@ import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { environment } from '@env/environment';
 
-export interface Banhista {
+export interface Cliente {
   id: string;
   nome: string;
   email: string;
+  cpf: string;
   telefone?: string;
-  nomeNegocio?: string;
-  plano: string;
-  trialFim?: string;
 }
 
-export interface AuthResponse {
-  banhista: Banhista;
+export interface ClienteAuthResponse {
+  cliente: Cliente;
   accessToken: string;
   refreshToken: string;
 }
 
-export interface LoginData {
+export interface ClienteLoginData {
   email: string;
   senha: string;
 }
 
-export interface RegistroData {
+export interface ClienteRegistroData {
   nome: string;
   email: string;
   senha: string;
+  cpf: string;
   telefone?: string;
-  nomeNegocio?: string;
 }
 
 @Injectable({ providedIn: 'root' })
-export class AuthService {
-  private readonly TOKEN_KEY = 'agendaumento_token';
-  private readonly REFRESH_KEY = 'agendaumento_refresh';
-  private readonly USER_KEY = 'agendaumento_user';
+export class ClienteAuthService {
+  private readonly TOKEN_KEY = 'agendaumento_cliente_token';
+  private readonly REFRESH_KEY = 'agendaumento_cliente_refresh';
+  private readonly USER_KEY = 'agendaumento_cliente_user';
 
-  private _banhista = signal<Banhista | null>(this.getStoredUser());
+  private _cliente = signal<Cliente | null>(this.getStoredUser());
 
-  banhista = this._banhista.asReadonly();
-  isLoggedIn = computed(() => !!this._banhista());
+  cliente = this._cliente.asReadonly();
+  isLoggedIn = computed(() => !!this._cliente());
 
   constructor(
     private http: HttpClient,
     private router: Router
   ) {}
 
-  login(data: LoginData): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/login`, data).pipe(
+  login(data: ClienteLoginData): Observable<ClienteAuthResponse> {
+    return this.http.post<ClienteAuthResponse>(`${environment.apiUrl}/auth/cliente/login`, data).pipe(
       tap(response => this.handleAuthResponse(response))
     );
   }
 
-  registro(data: RegistroData): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/registro`, data).pipe(
+  registro(data: ClienteRegistroData): Observable<ClienteAuthResponse> {
+    return this.http.post<ClienteAuthResponse>(`${environment.apiUrl}/auth/cliente/registro`, data).pipe(
       tap(response => this.handleAuthResponse(response))
     );
   }
@@ -65,8 +63,8 @@ export class AuthService {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_KEY);
     localStorage.removeItem(this.USER_KEY);
-    this._banhista.set(null);
-    this.router.navigate(['/admin/login']);
+    this._cliente.set(null);
+    this.router.navigate(['/login']);
   }
 
   isAuthenticated(): boolean {
@@ -77,14 +75,14 @@ export class AuthService {
     return localStorage.getItem(this.TOKEN_KEY);
   }
 
-  private handleAuthResponse(response: AuthResponse): void {
+  private handleAuthResponse(response: ClienteAuthResponse): void {
     localStorage.setItem(this.TOKEN_KEY, response.accessToken);
     localStorage.setItem(this.REFRESH_KEY, response.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.banhista));
-    this._banhista.set(response.banhista);
+    localStorage.setItem(this.USER_KEY, JSON.stringify(response.cliente));
+    this._cliente.set(response.cliente);
   }
 
-  private getStoredUser(): Banhista | null {
+  private getStoredUser(): Cliente | null {
     const stored = localStorage.getItem(this.USER_KEY);
     if (stored) {
       try {

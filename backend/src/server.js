@@ -16,6 +16,11 @@ const agendamentosRoutes = require('./modules/agendamentos/agendamentos.routes')
 const financeiroRoutes = require('./modules/financeiro/financeiro.routes');
 const whatsappRoutes = require('./modules/whatsapp/whatsapp.routes');
 
+// Rotas para area do cliente
+const publicRoutes = require('./modules/public/public.routes');
+const clienteAuthRoutes = require('./modules/clienteAuth/clienteAuth.routes');
+const clienteAreaRoutes = require('./modules/clienteArea/clienteArea.routes');
+
 const app = express();
 
 // Middlewares de seguranca
@@ -40,8 +45,17 @@ app.use(express.urlencoded({ extended: true }));
 // Servir arquivos estaticos de uploads
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Rotas
+// Rotas publicas (sem autenticacao)
+app.use('/api/public', publicRoutes);
+
+// Rotas de autenticacao
 app.use('/api/auth', authRoutes);
+app.use('/api/auth/cliente', clienteAuthRoutes);
+
+// Rotas do cliente autenticado
+app.use('/api/cliente', clienteAreaRoutes);
+
+// Rotas do banhista (admin)
 app.use('/api/banhista', banhistasRoutes);
 app.use('/api/clientes', clientesRoutes);
 app.use('/api/pets', petsRoutes);
