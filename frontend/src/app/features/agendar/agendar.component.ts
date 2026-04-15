@@ -74,6 +74,12 @@ interface Pet {
               <div class="loading-container">
                 <span class="spinner"></span>
               </div>
+            } @else if (erroServicos()) {
+              <div class="estado-vazio">
+                <span class="estado-icon">⚠️</span>
+                <p>{{ erroServicos() }}</p>
+                <button class="btn btn-outline" (click)="carregarServicosPublico()">Tentar novamente</button>
+              </div>
             } @else {
               <div class="servicos-grid">
                 @for (servico of servicos(); track servico.id) {
@@ -88,6 +94,11 @@ interface Pet {
                       <p class="servico-duracao">{{ servico.duracaoMin }} minutos</p>
                     </div>
                     <p class="servico-preco">R$ {{ servico.precoPequeno | number:'1.0-0' }}+</p>
+                  </div>
+                } @empty {
+                  <div class="estado-vazio">
+                    <span class="estado-icon">📋</span>
+                    <p>Nenhum servico disponivel no momento.</p>
                   </div>
                 }
               </div>
@@ -179,6 +190,16 @@ interface Pet {
                 <span class="resumo-label">Duracao</span>
                 <span class="resumo-value">{{ servicoSelecionado()?.duracaoMin }} minutos</span>
               </div>
+              @if (petSelecionado()) {
+                <div class="resumo-item">
+                  <span class="resumo-label">Pet</span>
+                  <span class="resumo-value">{{ petSelecionado()?.nome }} ({{ petSelecionado()?.tamanho }})</span>
+                </div>
+                <div class="resumo-item resumo-preco">
+                  <span class="resumo-label">Preco</span>
+                  <span class="resumo-value preco-destaque">R$ {{ precoCalculado() | number:'1.2-2' }}</span>
+                </div>
+              }
             </div>
 
             @if (error()) {
@@ -199,15 +220,22 @@ interface Pet {
                     <span class="spinner"></span>
                     <span>Carregando seus pets...</span>
                   </div>
-                } @else if (pets().length === 0) {
+                } @else if (pets().length === 0 || mostraCadastroPet()) {
                   <!-- Formulario de cadastro de pet -->
                   <div class="cadastro-pet">
-                    <h3>Cadastre seu pet</h3>
-                    <p class="cadastro-pet-info">Para agendar, voce precisa cadastrar seu pet</p>
+                    <div class="cadastro-pet-header">
+                      <h3>{{ pets().length === 0 ? 'Cadastre seu pet' : 'Novo pet' }}</h3>
+                      @if (pets().length > 0) {
+                        <button class="btn-link" (click)="mostraCadastroPet.set(false)">← Voltar</button>
+                      }
+                    </div>
+                    @if (pets().length === 0) {
+                      <p class="cadastro-pet-info">Para agendar, voce precisa cadastrar seu pet</p>
+                    }
 
                     <div class="form-group">
                       <label class="form-label">Nome do pet *</label>
-                      <input type="text" class="form-input" [(ngModel)]="novoPet.nome" placeholder="Nome do seu pet">
+                      <input type="text" class="form-input" [(ngModel)]="novoPet.nome" placeholder="Ex: Rex">
                     </div>
 
                     <div class="form-row">
@@ -223,7 +251,7 @@ interface Pet {
                         </select>
                       </div>
                       <div class="form-group">
-                        <label class="form-label">Tamanho</label>
+                        <label class="form-label">Tamanho *</label>
                         <select class="form-input" [(ngModel)]="novoPet.tamanho">
                           <option value="">Selecione</option>
                           <option value="pequeno">Pequeno</option>
@@ -242,7 +270,7 @@ interface Pet {
                     <button
                       class="btn btn-primary btn-block"
                       (click)="cadastrarPetEAgendar()"
-                      [disabled]="loadingConfirmar() || !novoPet.nome || !novoPet.especie"
+                      [disabled]="loadingConfirmar() || !novoPet.nome || !novoPet.especie || !novoPet.tamanho"
                     >
                       @if (loadingConfirmar()) {
                         <span class="spinner"></span>
@@ -265,9 +293,12 @@ interface Pet {
                           <span class="pet-icon">{{ getEspecieIcon(pet.especie) }}</span>
                           <span class="pet-nome">{{ pet.nome }}</span>
                           <span class="pet-info">{{ pet.raca || pet.especie }}</span>
+                          <span class="pet-tamanho">{{ pet.tamanho }}</span>
                         </button>
                       }
                     </div>
+
+                    <button class="btn-link-add" (click)="abrirCadastroPet()">+ Adicionar outro pet</button>
 
                     <button
                       class="btn btn-primary btn-block"
@@ -283,12 +314,13 @@ interface Pet {
                   </div>
                 }
               } @else {
-                <button
-                  class="btn btn-primary btn-block"
-                  (click)="confirmar()"
-                >
-                  Entrar para Confirmar
-                </button>
+                <div class="login-prompt">
+                  <p class="login-prompt-text">Faca login ou crie uma conta para finalizar o agendamento</p>
+                  <div class="login-prompt-actions">
+                    <button class="btn btn-primary" (click)="confirmar()">Entrar</button>
+                    <button class="btn btn-outline-dark" (click)="irParaRegistro()">Criar conta</button>
+                  </div>
+                </div>
               }
             }
           </section>
@@ -744,6 +776,111 @@ interface Pet {
       font-size: 0.875rem;
     }
 
+    // Estado vazio / erro
+    .estado-vazio {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--cor-texto-suave);
+
+      .estado-icon {
+        font-size: 2.5rem;
+        display: block;
+        margin-bottom: 0.75rem;
+      }
+
+      p { margin-bottom: 1rem; }
+    }
+
+    // Resumo preco destaque
+    .resumo-preco .resumo-value {
+      font-size: 1.125rem;
+    }
+
+    .preco-destaque {
+      color: var(--cor-primaria);
+      font-weight: 700;
+      font-size: 1.125rem;
+    }
+
+    // Login prompt
+    .login-prompt {
+      text-align: center;
+      padding: 0.5rem 0;
+    }
+
+    .login-prompt-text {
+      color: var(--cor-texto-suave);
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+
+    .login-prompt-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+
+      .btn-outline-dark {
+        border: 2px solid var(--cor-texto);
+        color: var(--cor-texto);
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        text-decoration: none;
+
+        &:hover {
+          background: var(--cor-texto);
+          color: white;
+        }
+      }
+    }
+
+    // Pet tamanho badge
+    .pet-tamanho {
+      font-size: 0.65rem;
+      text-transform: capitalize;
+      background: var(--cor-fundo);
+      padding: 0.125rem 0.375rem;
+      border-radius: var(--radius-full);
+      color: var(--cor-texto-suave);
+    }
+
+    // Add pet link
+    .btn-link-add {
+      display: block;
+      background: none;
+      border: none;
+      color: var(--cor-primaria);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: 0.5rem 0;
+      margin-bottom: 1rem;
+      text-align: left;
+
+      &:hover { text-decoration: underline; }
+    }
+
+    // Cadastro pet header
+    .cadastro-pet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+
+      h3 { margin: 0; }
+
+      .btn-link {
+        background: none;
+        border: none;
+        color: var(--cor-texto-suave);
+        cursor: pointer;
+        font-size: 0.875rem;
+        padding: 0;
+
+        &:hover { color: var(--cor-primaria); }
+      }
+    }
+
     // Cadastro de pet
     .cadastro-pet-info {
       color: var(--cor-texto-suave);
@@ -927,25 +1064,41 @@ export class AgendarComponent implements OnInit {
   pets = signal<Pet[]>([]);
   loadingPets = signal(false);
   petSelecionado = signal<Pet | null>(null);
+  mostraCadastroPet = signal(false);
   novoPet = { nome: '', especie: '', raca: '', tamanho: '' };
 
   loadingConfirmar = signal(false);
+  erroServicos = signal('');
   error = signal('');
   sucesso = signal(false);
+
+  precoCalculado(): number {
+    const pet = this.petSelecionado();
+    const servico = this.servicoSelecionado();
+    if (!pet || !servico) return 0;
+    if (pet.tamanho === 'pequeno') return servico.precoPequeno;
+    if (pet.tamanho === 'grande') return servico.precoGrande;
+    if (pet.tamanho === 'gigante') return servico.precoGigante;
+    return servico.precoMedio;
+  }
 
   ngOnInit() {
     this.carregarServicos();
     this.verificarIntentSalvo();
   }
 
+  carregarServicosPublico() { this.carregarServicos(); }
+
   private carregarServicos() {
     this.loadingServicos.set(true);
+    this.erroServicos.set('');
     this.publicApi.getServicos().subscribe({
       next: (res) => {
-        this.servicos.set(res.servicos);
+        this.servicos.set(res.servicos || []);
         this.loadingServicos.set(false);
       },
       error: () => {
+        this.erroServicos.set('Nao foi possivel carregar os servicos. Tente novamente.');
         this.loadingServicos.set(false);
       }
     });
@@ -1082,25 +1235,39 @@ export class AgendarComponent implements OnInit {
     this.petSelecionado.set(pet);
   }
 
+  abrirCadastroPet() {
+    this.novoPet = { nome: '', especie: '', raca: '', tamanho: '' };
+    this.error.set('');
+    this.mostraCadastroPet.set(true);
+  }
+
+  private salvarIntent() {
+    const intent: BookingIntent = {
+      servicoId: this.servicoSelecionado()!.id,
+      dataHora: this.slotSelecionado()!.dataHora,
+      servicoNome: this.servicoSelecionado()!.nome,
+      data: this.dataSelecionada(),
+      hora: this.slotSelecionado()!.hora
+    };
+    sessionStorage.setItem('booking_intent', JSON.stringify(intent));
+  }
+
   confirmar() {
     if (!this.clienteAuth.isLoggedIn()) {
-      const intent: BookingIntent = {
-        servicoId: this.servicoSelecionado()!.id,
-        dataHora: this.slotSelecionado()!.dataHora,
-        servicoNome: this.servicoSelecionado()!.nome,
-        data: this.dataSelecionada(),
-        hora: this.slotSelecionado()!.hora
-      };
-      sessionStorage.setItem('booking_intent', JSON.stringify(intent));
+      this.salvarIntent();
       this.router.navigate(['/login'], { queryParams: { returnUrl: '/agendar' } });
       return;
     }
-
     this.carregarPets();
   }
 
+  irParaRegistro() {
+    this.salvarIntent();
+    this.router.navigate(['/registro'], { queryParams: { returnUrl: '/agendar' } });
+  }
+
   cadastrarPetEAgendar() {
-    if (!this.novoPet.nome || !this.novoPet.especie) return;
+    if (!this.novoPet.nome || !this.novoPet.especie || !this.novoPet.tamanho) return;
 
     this.loadingConfirmar.set(true);
     this.error.set('');
@@ -1109,9 +1276,10 @@ export class AgendarComponent implements OnInit {
       nome: this.novoPet.nome,
       especie: this.novoPet.especie,
       raca: this.novoPet.raca || undefined,
-      tamanho: this.novoPet.tamanho || undefined
+      tamanho: this.novoPet.tamanho
     }).subscribe({
       next: (res) => {
+        this.mostraCadastroPet.set(false);
         this.criarAgendamento(res.id);
       },
       error: (err) => {

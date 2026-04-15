@@ -15,14 +15,12 @@ const getDemoBanhistaId = async () => {
 };
 
 const listarServicos = async () => {
-  const banhistaId = await getDemoBanhistaId();
-
+  // Single-tenant: sem filtro banhista_id para evitar mismatch de IDs
   const result = await query(
     `SELECT id, nome, duracao_min, preco_pequeno, preco_medio, preco_grande, preco_gigante
      FROM servicos
-     WHERE banhista_id = $1 AND ativo = true
-     ORDER BY nome ASC`,
-    [banhistaId]
+     WHERE ativo = true
+     ORDER BY nome ASC`
   );
 
   return result.rows.map(row => ({
@@ -37,13 +35,11 @@ const listarServicos = async () => {
 };
 
 const obterServico = async (servicoId) => {
-  const banhistaId = await getDemoBanhistaId();
-
   const result = await query(
     `SELECT id, nome, duracao_min, preco_pequeno, preco_medio, preco_grande, preco_gigante
      FROM servicos
-     WHERE id = $1 AND banhista_id = $2 AND ativo = true`,
-    [servicoId, banhistaId]
+     WHERE id = $1 AND ativo = true`,
+    [servicoId]
   );
 
   if (result.rows.length === 0) {
@@ -66,8 +62,8 @@ const calcularDisponibilidade = async (data, servicoId) => {
   const banhistaId = await getDemoBanhistaId();
 
   const servicoResult = await query(
-    'SELECT duracao_min FROM servicos WHERE id = $1 AND banhista_id = $2 AND ativo = true',
-    [servicoId, banhistaId]
+    'SELECT duracao_min, banhista_id FROM servicos WHERE id = $1 AND ativo = true',
+    [servicoId]
   );
 
   if (servicoResult.rows.length === 0) {
@@ -75,7 +71,8 @@ const calcularDisponibilidade = async (data, servicoId) => {
   }
 
   const duracaoMin = servicoResult.rows[0].duracao_min;
-  const slots = await calcularSlots(banhistaId, data, duracaoMin);
+  const servicoBanhistaId = servicoResult.rows[0].banhista_id;
+  const slots = await calcularSlots(servicoBanhistaId, data, duracaoMin);
 
   return { data, servicoId, duracaoMin, slots };
 };

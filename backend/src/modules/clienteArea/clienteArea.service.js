@@ -72,10 +72,12 @@ const criarAgendamento = async (clienteId, banhistaId, dados) => {
   const pet = petCheck.rows[0];
 
   // Buscar servico e preco baseado no tamanho do pet
+  // Sem filtro banhista_id: single-tenant, basta conferir que o servico existe e esta ativo
   const servicoCheck = await query(
-    `SELECT id, nome, duracao_min, preco_pequeno, preco_medio, preco_grande, preco_gigante
-     FROM servicos WHERE id = $1 AND banhista_id = $2 AND ativo = true`,
-    [dados.servicoId, banhistaId]
+    `SELECT id, nome, duracao_min, preco_pequeno, preco_medio, preco_grande, preco_gigante,
+            banhista_id
+     FROM servicos WHERE id = $1 AND ativo = true`,
+    [dados.servicoId]
   );
 
   if (servicoCheck.rows.length === 0) {
@@ -108,7 +110,7 @@ const criarAgendamento = async (clienteId, banhistaId, dados) => {
          AND status IN ('agendado', 'confirmado', 'em_andamento')
          AND tsrange(data_hora, ends_at) && tsrange($2::timestamp, $3::timestamp)
        FOR UPDATE`,
-      [banhistaId, dataHora.toISOString(), dataFim.toISOString()]
+      [servico.banhista_id, dataHora.toISOString(), dataFim.toISOString()]
     );
 
     if (conflitoCheck.rows.length > 0) {
@@ -117,11 +119,12 @@ const criarAgendamento = async (clienteId, banhistaId, dados) => {
     }
 
     // Criar agendamento dentro da transacao
+    // Usa o banhista_id do servico (nao do JWT) para garantir consistencia
     const result = await client.query(
       `INSERT INTO agendamentos (banhista_id, pet_id, cliente_id, servico_id, data_hora, duracao_min, preco, observacoes, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'agendado')
        RETURNING *`,
-      [banhistaId, dados.petId, clienteId, dados.servicoId, dados.dataHora, servico.duracao_min, preco, dados.observacoes || null]
+      [servico.banhista_id, dados.petId, clienteId, dados.servicoId, dados.dataHora, servico.duracao_min, preco, dados.observacoes || null]
     );
 
     await client.query('COMMIT');
