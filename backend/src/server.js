@@ -27,8 +27,19 @@ const app = express();
 
 // Middlewares de seguranca
 app.use(helmet());
+const origensPermitidas = [
+  process.env.FRONTEND_URL,
+  'http://localhost:4200',
+  'http://localhost:4201'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:4200',
+  origin: (origin, callback) => {
+    // Permitir requests sem origin (curl, Insomnia, mobile apps)
+    if (!origin) return callback(null, true);
+    if (origensPermitidas.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS bloqueado para origem: ${origin}`));
+  },
   credentials: true
 }));
 
