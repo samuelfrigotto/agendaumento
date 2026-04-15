@@ -92,8 +92,18 @@ Write-Success "Pastas criadas/verificadas!"
 Write-Step "4/5 - Enviando arquivos para VPS..."
 
 if ($backend) {
-    Write-Host "  Enviando backend..." -ForegroundColor Gray
-    scp -r ./backend/* "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
+    # Envia apenas o codigo-fonte — node_modules e gerado pelo Docker na VPS
+    Write-Host "  Enviando src/..." -ForegroundColor Gray
+    scp -r ./backend/src "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
+
+    Write-Host "  Enviando migrations/..." -ForegroundColor Gray
+    scp -r ./backend/migrations "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
+
+    Write-Host "  Enviando package.json / Dockerfile..." -ForegroundColor Gray
+    scp ./backend/package.json "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
+    scp ./backend/package-lock.json "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
+    scp ./backend/Dockerfile "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
+    scp ./backend/.dockerignore "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
 
     Write-Host "  Enviando docker-compose.yml..." -ForegroundColor Gray
     scp ./docker-compose.yml "${VPS_USER}@${VPS_IP}:${VPS_PATH}/"
