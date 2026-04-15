@@ -43,7 +43,6 @@ import { AuthService } from '@core/services/auth.service';
         <div class="sidebar-footer">
           <div class="user-info">
             <span class="user-name">{{ authService.banhista()?.nome }}</span>
-            <span class="user-plan">{{ authService.banhista()?.plano }}</span>
           </div>
           <button class="btn-logout" (click)="logout()">Sair</button>
         </div>
@@ -133,12 +132,6 @@ import { AuthService } from '@core/services/auth.service';
     .user-name {
       font-weight: 600;
       font-size: 0.875rem;
-    }
-
-    .user-plan {
-      font-size: 0.75rem;
-      color: var(--cor-primaria);
-      text-transform: capitalize;
     }
 
     .btn-logout {

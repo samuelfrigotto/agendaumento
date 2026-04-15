@@ -23,7 +23,6 @@ interface Cliente {
     <div class="page-container">
       <header class="page-header">
         <h1 class="page-title">Clientes</h1>
-        <button class="btn btn-primary" (click)="novoCliente()">+ Novo Cliente</button>
       </header>
 
       <div class="filtros-bar">
@@ -39,6 +38,10 @@ interface Cliente {
           <span>Apenas cadastrados pelo app</span>
         </label>
       </div>
+
+      @if (erroCarregamento()) {
+        <div class="alert alert-error">{{ erroCarregamento() }}</div>
+      }
 
       @if (loading()) {
         <div class="loading-container">
@@ -243,6 +246,19 @@ interface Cliente {
       color: #1d4ed8;
     }
 
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+    }
+
+    .alert-error {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+    }
+
     .loading-container {
       display: flex;
       justify-content: center;
@@ -399,6 +415,7 @@ export class ClientesComponent implements OnInit {
   private api = inject(ApiService);
 
   loading = signal(true);
+  erroCarregamento = signal('');
   clientes = signal<Cliente[]>([]);
   pagination = signal({ page: 1, limit: 20, total: 0, totalPages: 0 });
   busca = '';
@@ -425,6 +442,7 @@ export class ClientesComponent implements OnInit {
 
   carregarClientes(): void {
     this.loading.set(true);
+    this.erroCarregamento.set('');
     this.api.getClientes({
       page: this.pagination().page,
       limit: this.pagination().limit,
@@ -438,7 +456,9 @@ export class ClientesComponent implements OnInit {
         }
         this.loading.set(false);
       },
-      error: () => {
+      error: (err) => {
+        console.error('Erro ao carregar clientes:', err);
+        this.erroCarregamento.set(err.error?.error || `Erro ${err.status}: ${err.message}`);
         this.loading.set(false);
       }
     });

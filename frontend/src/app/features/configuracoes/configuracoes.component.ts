@@ -183,10 +183,6 @@ interface SecaoColapsavel {
             <div class="section-content">
               <div class="conta-info">
                 <p><strong>Email:</strong> {{ authService.banhista()?.email }}</p>
-                <p><strong>Plano:</strong> <span class="plano">{{ authService.banhista()?.plano }}</span></p>
-                @if (authService.banhista()?.trialFim) {
-                  <p><strong>Trial expira em:</strong> {{ authService.banhista()?.trialFim | date:'dd/MM/yyyy' }}</p>
-                }
               </div>
               <button class="btn btn-secondary mt-3">Alterar senha</button>
             </div>

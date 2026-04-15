@@ -11,19 +11,8 @@ interface Servico {
   precoMedio: number;
   precoGrande: number;
   precoGigante: number;
-  categoria: string;
   ativo: boolean;
 }
-
-const CATEGORIAS = [
-  { value: 'banho_tosa', label: 'Banho e Tosa', icon: '🛁' },
-  { value: 'consulta', label: 'Consulta', icon: '🩺' },
-  { value: 'exame', label: 'Exame', icon: '🔬' },
-  { value: 'cirurgia', label: 'Cirurgia', icon: '🏥' },
-  { value: 'vacina', label: 'Vacina', icon: '💉' },
-  { value: 'internacao', label: 'Internacao', icon: '🛏️' },
-  { value: 'outro', label: 'Outro', icon: '📋' }
-];
 
 @Component({
   selector: 'app-servicos',
@@ -41,63 +30,52 @@ const CATEGORIAS = [
           <span class="spinner"></span>
         </div>
       } @else {
-        <!-- Agrupar por categoria -->
-        @for (grupo of servicosAgrupados(); track grupo.categoria) {
-          <div class="categoria-section">
-            <h2 class="categoria-titulo">
-              <span class="categoria-icon">{{ grupo.icon }}</span>
-              {{ grupo.label }}
-              <span class="categoria-count">({{ grupo.servicos.length }})</span>
-            </h2>
+        <div class="servicos-grid">
+          @for (servico of servicos(); track servico.id) {
+            <div class="servico-card" [class.inativo]="!servico.ativo">
+              <div class="servico-header">
+                <h3 class="servico-nome">{{ servico.nome }}</h3>
+                @if (!servico.ativo) {
+                  <span class="badge badge-inativo">Inativo</span>
+                }
+              </div>
+              <p class="servico-duracao">{{ servico.duracaoMin }} minutos</p>
 
-            <div class="servicos-grid">
-              @for (servico of grupo.servicos; track servico.id) {
-                <div class="servico-card" [class.inativo]="!servico.ativo">
-                  <div class="servico-header">
-                    <h3 class="servico-nome">{{ servico.nome }}</h3>
-                    @if (!servico.ativo) {
-                      <span class="badge badge-inativo">Inativo</span>
-                    }
-                  </div>
-                  <p class="servico-duracao">{{ servico.duracaoMin }} minutos</p>
-
-                  <div class="precos-grid">
-                    <div class="preco-item">
-                      <span class="preco-label">Pequeno</span>
-                      <span class="preco-valor">R$ {{ servico.precoPequeno | number:'1.2-2' }}</span>
-                    </div>
-                    <div class="preco-item">
-                      <span class="preco-label">Medio</span>
-                      <span class="preco-valor">R$ {{ servico.precoMedio | number:'1.2-2' }}</span>
-                    </div>
-                    <div class="preco-item">
-                      <span class="preco-label">Grande</span>
-                      <span class="preco-valor">R$ {{ servico.precoGrande | number:'1.2-2' }}</span>
-                    </div>
-                    <div class="preco-item">
-                      <span class="preco-label">Gigante</span>
-                      <span class="preco-valor">R$ {{ servico.precoGigante | number:'1.2-2' }}</span>
-                    </div>
-                  </div>
-
-                  <div class="servico-actions">
-                    <button class="btn btn-secondary btn-sm" (click)="editarServico(servico)">Editar</button>
-                    @if (servico.ativo) {
-                      <button class="btn btn-danger btn-sm" (click)="desativarServico(servico)">Desativar</button>
-                    } @else {
-                      <button class="btn btn-success btn-sm" (click)="ativarServico(servico)">Ativar</button>
-                    }
-                  </div>
+              <div class="precos-grid">
+                <div class="preco-item">
+                  <span class="preco-label">Pequeno</span>
+                  <span class="preco-valor">R$ {{ servico.precoPequeno | number:'1.2-2' }}</span>
                 </div>
-              }
+                <div class="preco-item">
+                  <span class="preco-label">Medio</span>
+                  <span class="preco-valor">R$ {{ servico.precoMedio | number:'1.2-2' }}</span>
+                </div>
+                <div class="preco-item">
+                  <span class="preco-label">Grande</span>
+                  <span class="preco-valor">R$ {{ servico.precoGrande | number:'1.2-2' }}</span>
+                </div>
+                <div class="preco-item">
+                  <span class="preco-label">Gigante</span>
+                  <span class="preco-valor">R$ {{ servico.precoGigante | number:'1.2-2' }}</span>
+                </div>
+              </div>
+
+              <div class="servico-actions">
+                <button class="btn btn-secondary btn-sm" (click)="editarServico(servico)">Editar</button>
+                @if (servico.ativo) {
+                  <button class="btn btn-danger btn-sm" (click)="desativarServico(servico)">Desativar</button>
+                } @else {
+                  <button class="btn btn-success btn-sm" (click)="ativarServico(servico)">Ativar</button>
+                }
+              </div>
             </div>
-          </div>
-        } @empty {
-          <div class="empty-state">
-            <p>Nenhum servico cadastrado</p>
-            <button class="btn btn-primary" (click)="novoServico()">Criar primeiro servico</button>
-          </div>
-        }
+          } @empty {
+            <div class="empty-state" style="grid-column: 1/-1">
+              <p>Nenhum servico cadastrado</p>
+              <button class="btn btn-primary" (click)="novoServico()">Criar primeiro servico</button>
+            </div>
+          }
+        </div>
       }
     </div>
 
@@ -200,29 +178,6 @@ const CATEGORIAS = [
       display: flex;
       justify-content: center;
       padding: 3rem;
-    }
-
-    .categoria-section {
-      margin-bottom: 2rem;
-    }
-
-    .categoria-titulo {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 1.125rem;
-      margin-bottom: 1rem;
-      color: var(--cor-texto);
-    }
-
-    .categoria-icon {
-      font-size: 1.5rem;
-    }
-
-    .categoria-count {
-      font-weight: 400;
-      color: var(--cor-texto-suave);
-      font-size: 0.875rem;
     }
 
     .servicos-grid {
@@ -497,7 +452,6 @@ export class ServicosComponent implements OnInit {
 
   loading = signal(true);
   servicos = signal<Servico[]>([]);
-  categorias = CATEGORIAS;
 
   // Modal
   modalAberto = signal(false);
@@ -506,7 +460,6 @@ export class ServicosComponent implements OnInit {
   salvando = signal(false);
   form = {
     nome: '',
-    categoria: 'banho_tosa',
     duracaoMin: 60,
     precoPequeno: 0,
     precoMedio: 0,
@@ -533,31 +486,10 @@ export class ServicosComponent implements OnInit {
     });
   }
 
-  servicosAgrupados() {
-    const servicos = this.servicos();
-    const grupos: { categoria: string; label: string; icon: string; servicos: Servico[] }[] = [];
-
-    servicos.forEach(servico => {
-      const cat = CATEGORIAS.find(c => c.value === servico.categoria) || CATEGORIAS.find(c => c.value === 'outro')!;
-      let grupo = grupos.find(g => g.categoria === servico.categoria);
-
-      if (!grupo) {
-        grupo = { categoria: servico.categoria, label: cat.label, icon: cat.icon, servicos: [] };
-        grupos.push(grupo);
-      }
-      grupo.servicos.push(servico);
-    });
-
-    // Ordenar categorias
-    const ordem = CATEGORIAS.map(c => c.value);
-    return grupos.sort((a, b) => ordem.indexOf(a.categoria) - ordem.indexOf(b.categoria));
-  }
-
   novoServico(): void {
     this.servicoEditando.set(null);
     this.form = {
       nome: '',
-      categoria: 'banho_tosa',
       duracaoMin: 60,
       precoPequeno: 50,
       precoMedio: 70,
@@ -572,7 +504,6 @@ export class ServicosComponent implements OnInit {
     this.servicoEditando.set(servico);
     this.form = {
       nome: servico.nome,
-      categoria: servico.categoria || 'banho_tosa',
       duracaoMin: servico.duracaoMin,
       precoPequeno: servico.precoPequeno,
       precoMedio: servico.precoMedio,

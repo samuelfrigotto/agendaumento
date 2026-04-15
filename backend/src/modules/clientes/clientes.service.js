@@ -3,6 +3,8 @@ const { AppError } = require('../../middlewares/errorHandler');
 
 const listar = async (banhistaId, { page, limit, busca, apenasAutocadastro }) => {
   const offset = (page - 1) * limit;
+  // App single-tenant: sem filtro por banhista_id — clientes auto-cadastrados
+  // podem ter banhista_id diferente do admin logado (getDemoBanhistaId vs JWT id)
   let sql = `
     SELECT c.id, c.nome, c.telefone, c.email, c.email_auth, c.observacoes, c.criado_em,
            COUNT(p.id) as qtd_pets,
@@ -10,9 +12,9 @@ const listar = async (banhistaId, { page, limit, busca, apenasAutocadastro }) =>
     FROM clientes c
     LEFT JOIN pets p ON p.cliente_id = c.id
     LEFT JOIN agendamentos a ON a.cliente_id = c.id
-    WHERE c.banhista_id = $1
+    WHERE 1=1
   `;
-  const params = [banhistaId];
+  const params = [];
 
   // Filtrar apenas clientes que se cadastraram pelo app (tem email_auth)
   if (apenasAutocadastro) {
@@ -34,8 +36,8 @@ const listar = async (banhistaId, { page, limit, busca, apenasAutocadastro }) =>
   const result = await query(sql, params);
 
   // Contar total
-  let countSql = 'SELECT COUNT(*) FROM clientes WHERE banhista_id = $1';
-  const countParams = [banhistaId];
+  let countSql = 'SELECT COUNT(*) FROM clientes WHERE 1=1';
+  const countParams = [];
   if (apenasAutocadastro) {
     countSql += ' AND email_auth IS NOT NULL';
   }
