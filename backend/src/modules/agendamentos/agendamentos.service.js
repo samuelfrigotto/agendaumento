@@ -133,7 +133,6 @@ const listarSemana = async (banhistaId, dataBase) => {
 };
 
 const criar = async (banhistaId, dados) => {
-  // Verificar se pet pertence a banhista
   const petCheck = await query(
     'SELECT id, cliente_id FROM pets WHERE id = $1 AND banhista_id = $2',
     [dados.petId, banhistaId]
@@ -145,14 +144,22 @@ const criar = async (banhistaId, dados) => {
 
   const clienteId = dados.clienteId || petCheck.rows[0].cliente_id;
 
-  const result = await query(
-    `INSERT INTO agendamentos (banhista_id, pet_id, cliente_id, servico_id, data_hora, duracao_min, preco, observacoes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING *`,
-    [banhistaId, dados.petId, clienteId, dados.servicoId, dados.dataHora, dados.duracaoMin || 60, dados.preco, dados.observacoes]
-  );
+  try {
+    const result = await query(
+      `INSERT INTO agendamentos (banhista_id, pet_id, cliente_id, servico_id, data_hora, duracao_min, preco, observacoes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [banhistaId, dados.petId, clienteId, dados.servicoId, dados.dataHora, dados.duracaoMin || 60, dados.preco, dados.observacoes]
+    );
 
-  return buscarPorId(banhistaId, result.rows[0].id);
+    return buscarPorId(banhistaId, result.rows[0].id);
+  } catch (error) {
+    // 23P01 = exclusion_violation (GIST constraint — double-booking no banco)
+    if (error.code === '23P01') {
+      throw new AppError('Horario indisponivel. Ja existe um agendamento neste periodo.', 409);
+    }
+    throw error;
+  }
 };
 
 const buscarPorId = async (banhistaId, agendamentoId) => {

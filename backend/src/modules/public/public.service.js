@@ -1,9 +1,6 @@
 const { query } = require('../../config/database');
 const { AppError } = require('../../middlewares/errorHandler');
-
-const HORARIO_INICIO = 8; // 08:00
-const HORARIO_FIM = 20; // 20:00
-const INTERVALO_MIN = 30; // Slots a cada 30 minutos
+const { calcularSlots } = require('../disponibilidade/disponibilidade.service');
 
 // ID do banhista de demonstracao
 const getDemoBanhistaId = async () => {
@@ -68,7 +65,6 @@ const obterServico = async (servicoId) => {
 const calcularDisponibilidade = async (data, servicoId) => {
   const banhistaId = await getDemoBanhistaId();
 
-  // Buscar duracao do servico
   const servicoResult = await query(
     'SELECT duracao_min FROM servicos WHERE id = $1 AND banhista_id = $2 AND ativo = true',
     [servicoId, banhistaId]
@@ -78,71 +74,10 @@ const calcularDisponibilidade = async (data, servicoId) => {
     throw new AppError('Servico nao encontrado', 404);
   }
 
-  const duracaoServico = servicoResult.rows[0].duracao_min;
+  const duracaoMin = servicoResult.rows[0].duracao_min;
+  const slots = await calcularSlots(banhistaId, data, duracaoMin);
 
-  // Buscar agendamentos do dia (exceto cancelados)
-  const dataInicio = new Date(data);
-  dataInicio.setHours(0, 0, 0, 0);
-
-  const dataFim = new Date(data);
-  dataFim.setHours(23, 59, 59, 999);
-
-  const agendamentosResult = await query(
-    `SELECT data_hora, duracao_min
-     FROM agendamentos
-     WHERE banhista_id = $1
-       AND data_hora >= $2
-       AND data_hora <= $3
-       AND status != 'cancelado'
-     ORDER BY data_hora ASC`,
-    [banhistaId, dataInicio.toISOString(), dataFim.toISOString()]
-  );
-
-  const agendamentos = agendamentosResult.rows;
-
-  // Gerar slots disponiveis
-  const slots = [];
-  const dataBase = new Date(data);
-
-  for (let hora = HORARIO_INICIO; hora < HORARIO_FIM; hora++) {
-    for (let min = 0; min < 60; min += INTERVALO_MIN) {
-      const slotInicio = new Date(dataBase);
-      slotInicio.setHours(hora, min, 0, 0);
-
-      const slotFim = new Date(slotInicio);
-      slotFim.setMinutes(slotFim.getMinutes() + duracaoServico);
-
-      // Verificar se slot termina antes do horario de fechamento
-      if (slotFim.getHours() > HORARIO_FIM || (slotFim.getHours() === HORARIO_FIM && slotFim.getMinutes() > 0)) {
-        continue;
-      }
-
-      // Verificar conflitos com agendamentos existentes
-      const temConflito = agendamentos.some(a => {
-        const agendInicio = new Date(a.data_hora);
-        const agendFim = new Date(agendInicio);
-        agendFim.setMinutes(agendFim.getMinutes() + a.duracao_min);
-
-        // Conflito existe se os intervalos se sobrepoem
-        return slotInicio < agendFim && slotFim > agendInicio;
-      });
-
-      if (!temConflito) {
-        const horaFormatada = `${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-        slots.push({
-          hora: horaFormatada,
-          dataHora: slotInicio.toISOString()
-        });
-      }
-    }
-  }
-
-  return {
-    data: data,
-    servicoId: servicoId,
-    duracaoMin: duracaoServico,
-    slots: slots
-  };
+  return { data, servicoId, duracaoMin, slots };
 };
 
 const obterInfoEstabelecimento = async () => {

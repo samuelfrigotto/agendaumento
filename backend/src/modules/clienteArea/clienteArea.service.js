@@ -1,5 +1,6 @@
 const { query, getClient } = require('../../config/database');
 const { AppError } = require('../../middlewares/errorHandler');
+const { enviarConfirmacaoCliente, enviarAlertaAdmin, enviarCancelamentoCliente } = require('../email/email.service');
 
 const formatarAgendamento = (a) => ({
   id: a.id,
@@ -100,25 +101,19 @@ const criarAgendamento = async (clienteId, banhistaId, dados) => {
   try {
     await client.query('BEGIN');
 
-    // Bloquear registros de agendamentos que possam conflitar (FOR UPDATE)
-    // Permite servicos diferentes no mesmo horario, mas nao o mesmo servico
+    // Verificar conflito de horario para qualquer servico (agenda unica)
     const conflitoCheck = await client.query(
       `SELECT id FROM agendamentos
        WHERE banhista_id = $1
-         AND servico_id = $4
-         AND status != 'cancelado'
-         AND (
-           (data_hora <= $2 AND data_hora + (duracao_min || ' minutes')::interval > $2)
-           OR (data_hora < $3 AND data_hora + (duracao_min || ' minutes')::interval >= $3)
-           OR (data_hora >= $2 AND data_hora + (duracao_min || ' minutes')::interval <= $3)
-         )
+         AND status IN ('agendado', 'confirmado', 'em_andamento')
+         AND tsrange(data_hora, ends_at) && tsrange($2::timestamp, $3::timestamp)
        FOR UPDATE`,
-      [banhistaId, dataHora.toISOString(), dataFim.toISOString(), dados.servicoId]
+      [banhistaId, dataHora.toISOString(), dataFim.toISOString()]
     );
 
     if (conflitoCheck.rows.length > 0) {
       await client.query('ROLLBACK');
-      throw new AppError('Este servico ja esta agendado neste horario. Por favor, escolha outro horario.', 409);
+      throw new AppError('Horario indisponivel. Por favor, escolha outro horario.', 409);
     }
 
     // Criar agendamento dentro da transacao
@@ -133,19 +128,38 @@ const criarAgendamento = async (clienteId, banhistaId, dados) => {
 
     const agendamento = result.rows[0];
 
-    // Buscar dados completos (fora da transacao)
+    // Buscar dados completos incluindo email do cliente para notificacao
     const sql = `
       SELECT a.*,
              p.nome as pet_nome, p.raca as pet_raca, p.tamanho as pet_tamanho,
-             s.nome as servico_nome
+             s.nome as servico_nome,
+             c.nome as cliente_nome, c.email_auth as cliente_email
       FROM agendamentos a
       LEFT JOIN pets p ON p.id = a.pet_id
       LEFT JOIN servicos s ON s.id = a.servico_id
+      LEFT JOIN clientes c ON c.id = a.cliente_id
       WHERE a.id = $1
     `;
 
     const resultFinal = await query(sql, [agendamento.id]);
-    return formatarAgendamento(resultFinal.rows[0]);
+    const dados = resultFinal.rows[0];
+
+    // Disparar emails de confirmacao (nao bloqueante — falha silenciosa)
+    enviarConfirmacaoCliente({
+      nomeCliente: dados.cliente_nome,
+      emailCliente: dados.cliente_email,
+      nomePet: dados.pet_nome,
+      nomeServico: dados.servico_nome,
+      dataHora: dados.data_hora
+    });
+    enviarAlertaAdmin({
+      nomeCliente: dados.cliente_nome,
+      nomePet: dados.pet_nome,
+      nomeServico: dados.servico_nome,
+      dataHora: dados.data_hora
+    });
+
+    return formatarAgendamento(dados);
 
   } catch (error) {
     await client.query('ROLLBACK');
@@ -156,10 +170,16 @@ const criarAgendamento = async (clienteId, banhistaId, dados) => {
 };
 
 const cancelarAgendamento = async (clienteId, agendamentoId) => {
-  // Verificar se agendamento pertence ao cliente e pode ser cancelado
   const check = await query(
-    `SELECT id, status, data_hora FROM agendamentos
-     WHERE id = $1 AND cliente_id = $2`,
+    `SELECT a.id, a.status, a.data_hora,
+            p.nome as pet_nome,
+            s.nome as servico_nome,
+            c.nome as cliente_nome, c.email_auth as cliente_email
+     FROM agendamentos a
+     LEFT JOIN pets p ON p.id = a.pet_id
+     LEFT JOIN servicos s ON s.id = a.servico_id
+     LEFT JOIN clientes c ON c.id = a.cliente_id
+     WHERE a.id = $1 AND a.cliente_id = $2`,
     [agendamentoId, clienteId]
   );
 
@@ -194,6 +214,14 @@ const cancelarAgendamento = async (clienteId, agendamentoId) => {
     `UPDATE agendamentos SET status = 'cancelado', atualizado_em = NOW() WHERE id = $1`,
     [agendamentoId]
   );
+
+  enviarCancelamentoCliente({
+    nomeCliente: agendamento.cliente_nome,
+    emailCliente: agendamento.cliente_email,
+    nomePet: agendamento.pet_nome,
+    nomeServico: agendamento.servico_nome,
+    dataHora: agendamento.data_hora
+  });
 
   return { message: 'Agendamento cancelado com sucesso' };
 };

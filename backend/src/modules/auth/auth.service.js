@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../../config/database');
 const { AppError } = require('../../middlewares/errorHandler');
+const { enviarRecuperacaoSenha } = require('../email/email.service');
 
 const SALT_ROUNDS = 12;
 
@@ -132,17 +133,24 @@ const refreshToken = async (token) => {
 
 const esqueciSenha = async (email) => {
   const result = await query(
-    'SELECT id, nome FROM banhistas WHERE email = $1',
+    'SELECT id, nome, senha_hash FROM banhistas WHERE email = $1',
     [email.toLowerCase()]
   );
 
-  if (result.rows.length === 0) {
-    // Nao revelar se email existe ou nao
-    return;
-  }
+  // Nao revelar se o email existe ou nao (segurança)
+  if (result.rows.length === 0) return;
 
-  // TODO: Implementar envio de email com token de recuperacao
-  console.log('Recuperacao de senha solicitada para:', email);
+  const banhista = result.rows[0];
+
+  // Token usa a senha_hash como parte do secret: invalida automaticamente
+  // apos a senha ser trocada, sem precisar de tabela de tokens
+  const token = jwt.sign(
+    { id: banhista.id, type: 'reset' },
+    process.env.JWT_SECRET + banhista.senha_hash,
+    { expiresIn: '1h' }
+  );
+
+  await enviarRecuperacaoSenha({ email, nome: banhista.nome, token });
 };
 
 module.exports = {
