@@ -71,7 +71,8 @@ if ($backend) {
     Write-Host "  -> backend/src/" -ForegroundColor Gray
     scp -r ./backend/src "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
 
-    Write-Host "  -> backend/migrations/" -ForegroundColor Gray
+    Write-Host "  -> backend/migrations/ (limpando antes para remover arquivos obsoletos)" -ForegroundColor Gray
+    ssh "${VPS_USER}@${VPS_IP}" "rm -rf ${VPS_PATH}/backend/migrations"
     scp -r ./backend/migrations "${VPS_USER}@${VPS_IP}:${VPS_PATH}/backend/"
 
     Write-Host "  -> backend/package*.json, Dockerfile, .dockerignore" -ForegroundColor Gray
