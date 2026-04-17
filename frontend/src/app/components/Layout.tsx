@@ -28,8 +28,8 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Top bar */}
-      <div className="bg-teal-800 text-teal-100 text-xs py-2 px-4">
+      {/* Top bar — hidden on mobile */}
+      <div className="hidden md:block bg-teal-800 text-teal-100 text-xs py-2 px-4">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">

@@ -43,16 +43,16 @@ export function Home() {
             Banho, tosa e muito mais com profissionais apaixonados pelo que fazem.
             Agende agora e deixe seu pet brilhar!
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
             <Link
               to="/agendar"
-              className="px-8 py-3.5 bg-white text-teal-700 font-bold rounded-2xl hover:bg-teal-50 transition-colors text-base shadow-lg"
+              className="w-full sm:w-auto px-8 py-3.5 bg-white text-teal-700 font-bold rounded-2xl hover:bg-teal-50 transition-colors text-base shadow-lg text-center"
             >
               Agendar Agora
             </Link>
             <Link
               to="/servicos"
-              className="px-8 py-3.5 border-2 border-white/40 text-white font-semibold rounded-2xl hover:bg-white/10 transition-colors text-base"
+              className="w-full sm:w-auto px-8 py-3.5 border-2 border-white/40 text-white font-semibold rounded-2xl hover:bg-white/10 transition-colors text-base text-center"
             >
               Ver Serviços
             </Link>
@@ -68,11 +68,11 @@ export function Home() {
             { icon: Clock, label: horaSegSex, sub: horaSab },
             { icon: CalendarCheck, label: "Agendamento Online", sub: "Rápido e fácil" },
           ].map(({ icon: Icon, label, sub }) => (
-            <div key={label} className="flex items-center justify-center gap-3 py-2">
-              <div className="w-9 h-9 bg-teal-50 rounded-xl flex items-center justify-center">
+            <div key={label} className="flex flex-col sm:flex-row items-center sm:justify-center gap-2 sm:gap-3 py-3 sm:py-2">
+              <div className="w-9 h-9 bg-teal-50 rounded-xl flex items-center justify-center shrink-0">
                 <Icon size={18} className="text-teal-600" />
               </div>
-              <div className="text-left">
+              <div className="text-center sm:text-left">
                 <p className="text-gray-900 font-semibold text-sm">{label}</p>
                 <p className="text-gray-500 text-xs">{sub}</p>
               </div>
