@@ -410,11 +410,11 @@ export async function fetchFinanceiroResumo(
   mes: number,
   ano: number
 ): Promise<FinanceiroResumo> {
-  return apiFetch<FinanceiroResumo>(`/financeiro/resumo?mes=${mes}&ano=${ano}`, { token });
+  return apiFetch<FinanceiroResumo>(`/admin/financeiro/resumo?mes=${mes}&ano=${ano}`, { token });
 }
 
 export async function fetchFinanceiroMensal(token: string): Promise<FinanceiroMensal[]> {
-  return apiFetch<FinanceiroMensal[]>("/financeiro/mensal", { token });
+  return apiFetch<FinanceiroMensal[]>("/admin/financeiro/mensal", { token });
 }
 
 export async function fetchFinanceiroPorServico(
@@ -422,7 +422,7 @@ export async function fetchFinanceiroPorServico(
   mes: number,
   ano: number
 ): Promise<FinanceiroPorServico[]> {
-  return apiFetch<FinanceiroPorServico[]>(`/financeiro/porservico?mes=${mes}&ano=${ano}`, { token });
+  return apiFetch<FinanceiroPorServico[]>(`/admin/financeiro/porservico?mes=${mes}&ano=${ano}`, { token });
 }
 
 export async function fetchFinanceiroItens(
@@ -432,5 +432,5 @@ export async function fetchFinanceiroItens(
   status?: string
 ): Promise<FinanceiroItem[]> {
   const qs = status ? `&status=${status}` : "";
-  return apiFetch<FinanceiroItem[]>(`/financeiro/servicos?mes=${mes}&ano=${ano}${qs}`, { token });
+  return apiFetch<FinanceiroItem[]>(`/admin/financeiro/servicos?mes=${mes}&ano=${ano}${qs}`, { token });
 }
