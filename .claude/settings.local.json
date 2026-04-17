@@ -4,7 +4,9 @@
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
       "Bash(ssh:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker volume:*)"
     ]
   }
 }

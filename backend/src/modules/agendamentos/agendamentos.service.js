@@ -1,338 +1,145 @@
-const { query } = require('../../config/database');
-const { AppError } = require('../../middlewares/errorHandler');
-const { enviarMensagemTexto, enviarMensagemComImagem } = require('../../config/whatsapp');
+const pool = require('../../config/database');
 
-const formatarAgendamento = (a) => ({
-  id: a.id,
-  dataHora: a.data_hora,
-  duracaoMin: a.duracao_min,
-  preco: a.preco,
-  status: a.status,
-  observacoes: a.observacoes,
-  avisoEnviado: a.aviso_enviado,
-  fotoProntoUrl: a.foto_pronto_url,
-  formaPagamento: a.forma_pagamento,
-  pago: a.pago,
-  pet: a.pet_id ? {
-    id: a.pet_id,
-    nome: a.pet_nome,
-    especie: a.pet_especie,
-    raca: a.pet_raca,
-    tamanho: a.pet_tamanho,
-    fotoUrl: a.pet_foto_url,
-    observacoes: a.pet_observacoes
-  } : null,
-  cliente: a.cliente_id ? {
-    id: a.cliente_id,
-    nome: a.cliente_nome,
-    telefone: a.cliente_telefone
-  } : null,
-  servico: a.servico_id ? {
-    id: a.servico_id,
-    nome: a.servico_nome
-  } : null,
-  criadoEm: a.criado_em
-});
+const SELECT_BASE = `
+  SELECT a.id,
+         a.data_hora,
+         a.status,
+         a.origem,
+         a.observacoes,
+         a.valor_cobrado,
+         a.criado_em,
+         -- Cliente
+         c.id   AS cliente_id,
+         c.nome AS cliente_nome,
+         c.telefone AS cliente_telefone,
+         a.nome_avulso,
+         a.telefone_avulso,
+         -- Pet
+         p.id   AS pet_id,
+         p.nome AS pet_nome,
+         a.pet_nome_avulso,
+         -- Serviço
+         s.id   AS servico_id,
+         s.nome AS servico_nome,
+         s.preco AS servico_preco,
+         s.duracao_minutos
+  FROM agendamentos a
+  LEFT JOIN clientes c ON c.id = a.cliente_id
+  LEFT JOIN pets     p ON p.id = a.pet_id
+  JOIN servicos      s ON s.id = a.servico_id
+`;
 
-const listar = async (banhistaId, filtros) => {
-  let sql = `
-    SELECT a.*,
-           p.nome as pet_nome, p.especie as pet_especie, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
-           c.nome as cliente_nome, c.telefone as cliente_telefone,
-           s.nome as servico_nome
-    FROM agendamentos a
-    LEFT JOIN pets p ON p.id = a.pet_id
-    LEFT JOIN clientes c ON c.id = a.cliente_id
-    LEFT JOIN servicos s ON s.id = a.servico_id
-    WHERE a.banhista_id = $1
-  `;
-  const params = [banhistaId];
+async function listar({ semana, status, pagina = 1, limite = 50 }) {
+  const conditions = [];
+  const params     = [];
 
-  if (filtros.dataInicio) {
-    sql += ` AND a.data_hora >= $${params.length + 1}`;
-    params.push(filtros.dataInicio);
+  if (semana) {
+    // semana = 'YYYY-WW' ou a data de início da semana
+    params.push(semana);
+    conditions.push(`DATE_TRUNC('week', a.data_hora AT TIME ZONE 'America/Sao_Paulo') = DATE_TRUNC('week', $${params.length}::date AT TIME ZONE 'America/Sao_Paulo')`);
+  }
+  if (status) {
+    params.push(status);
+    conditions.push(`a.status = $${params.length}`);
   }
 
-  if (filtros.dataFim) {
-    sql += ` AND a.data_hora <= $${params.length + 1}`;
-    params.push(filtros.dataFim);
-  }
+  const where  = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+  const offset = (pagina - 1) * limite;
+  params.push(limite, offset);
 
-  if (filtros.status) {
-    sql += ` AND a.status = $${params.length + 1}`;
-    params.push(filtros.status);
-  }
-
-  if (filtros.petId) {
-    sql += ` AND a.pet_id = $${params.length + 1}`;
-    params.push(filtros.petId);
-  }
-
-  if (filtros.clienteId) {
-    sql += ` AND a.cliente_id = $${params.length + 1}`;
-    params.push(filtros.clienteId);
-  }
-
-  sql += ' ORDER BY a.data_hora ASC';
-
-  const result = await query(sql, params);
-  return result.rows.map(formatarAgendamento);
-};
-
-const listarHoje = async (banhistaId) => {
-  const sql = `
-    SELECT a.*,
-           p.nome as pet_nome, p.especie as pet_especie, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
-           c.nome as cliente_nome, c.telefone as cliente_telefone,
-           s.nome as servico_nome
-    FROM agendamentos a
-    LEFT JOIN pets p ON p.id = a.pet_id
-    LEFT JOIN clientes c ON c.id = a.cliente_id
-    LEFT JOIN servicos s ON s.id = a.servico_id
-    WHERE a.banhista_id = $1
-      AND DATE(a.data_hora) = CURRENT_DATE
-    ORDER BY a.data_hora ASC
-  `;
-
-  const result = await query(sql, [banhistaId]);
-  return result.rows.map(formatarAgendamento);
-};
-
-const listarSemana = async (banhistaId, dataBase) => {
-  const data = dataBase ? new Date(dataBase) : new Date();
-  const diaSemana = data.getDay();
-  const inicioSemana = new Date(data);
-  inicioSemana.setDate(data.getDate() - diaSemana);
-  inicioSemana.setHours(0, 0, 0, 0);
-
-  const fimSemana = new Date(inicioSemana);
-  fimSemana.setDate(inicioSemana.getDate() + 7);
-
-  const sql = `
-    SELECT a.*,
-           p.nome as pet_nome, p.especie as pet_especie, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
-           c.nome as cliente_nome, c.telefone as cliente_telefone,
-           s.nome as servico_nome
-    FROM agendamentos a
-    LEFT JOIN pets p ON p.id = a.pet_id
-    LEFT JOIN clientes c ON c.id = a.cliente_id
-    LEFT JOIN servicos s ON s.id = a.servico_id
-    WHERE a.banhista_id = $1
-      AND a.data_hora >= $2
-      AND a.data_hora < $3
-    ORDER BY a.data_hora ASC
-  `;
-
-  const result = await query(sql, [banhistaId, inicioSemana.toISOString(), fimSemana.toISOString()]);
-
-  return {
-    inicioSemana: inicioSemana.toISOString(),
-    fimSemana: fimSemana.toISOString(),
-    agendamentos: result.rows.map(formatarAgendamento)
-  };
-};
-
-const criar = async (banhistaId, dados) => {
-  const petCheck = await query(
-    'SELECT id, cliente_id FROM pets WHERE id = $1 AND banhista_id = $2',
-    [dados.petId, banhistaId]
+  const { rows } = await pool.query(
+    `${SELECT_BASE} ${where} ORDER BY a.data_hora LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
   );
+  return rows;
+}
 
-  if (petCheck.rows.length === 0) {
-    throw new AppError('Pet nao encontrado', 404);
-  }
-
-  const clienteId = dados.clienteId || petCheck.rows[0].cliente_id;
-
-  try {
-    const result = await query(
-      `INSERT INTO agendamentos (banhista_id, pet_id, cliente_id, servico_id, data_hora, duracao_min, preco, observacoes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [banhistaId, dados.petId, clienteId, dados.servicoId, dados.dataHora, dados.duracaoMin || 60, dados.preco, dados.observacoes]
-    );
-
-    return buscarPorId(banhistaId, result.rows[0].id);
-  } catch (error) {
-    // 23P01 = exclusion_violation (GIST constraint — double-booking no banco)
-    if (error.code === '23P01') {
-      throw new AppError('Horario indisponivel. Ja existe um agendamento neste periodo.', 409);
-    }
-    throw error;
-  }
-};
-
-const buscarPorId = async (banhistaId, agendamentoId) => {
-  const sql = `
-    SELECT a.*,
-           p.nome as pet_nome, p.especie as pet_especie, p.raca as pet_raca, p.tamanho as pet_tamanho, p.foto_url as pet_foto_url, p.observacoes as pet_observacoes,
-           c.nome as cliente_nome, c.telefone as cliente_telefone,
-           s.nome as servico_nome
-    FROM agendamentos a
-    LEFT JOIN pets p ON p.id = a.pet_id
-    LEFT JOIN clientes c ON c.id = a.cliente_id
-    LEFT JOIN servicos s ON s.id = a.servico_id
-    WHERE a.id = $1 AND a.banhista_id = $2
-  `;
-
-  const result = await query(sql, [agendamentoId, banhistaId]);
-
-  if (result.rows.length === 0) {
-    throw new AppError('Agendamento nao encontrado', 404);
-  }
-
-  return formatarAgendamento(result.rows[0]);
-};
-
-const atualizar = async (banhistaId, agendamentoId, dados) => {
-  const result = await query(
-    `UPDATE agendamentos
-     SET data_hora = COALESCE($3, data_hora),
-         duracao_min = COALESCE($4, duracao_min),
-         preco = COALESCE($5, preco),
-         servico_id = $6,
-         observacoes = $7,
-         atualizado_em = NOW()
-     WHERE id = $1 AND banhista_id = $2
-     RETURNING id`,
-    [agendamentoId, banhistaId, dados.dataHora, dados.duracaoMin, dados.preco, dados.servicoId, dados.observacoes]
+async function agenda(dataInicio, dataFim) {
+  const { rows } = await pool.query(
+    `${SELECT_BASE}
+     WHERE a.data_hora BETWEEN $1 AND $2
+       AND a.status NOT IN ('cancelado')
+     ORDER BY a.data_hora`,
+    [dataInicio, dataFim]
   );
+  return rows;
+}
 
-  if (result.rows.length === 0) {
-    throw new AppError('Agendamento nao encontrado', 404);
-  }
+async function buscarPorId(id) {
+  const { rows } = await pool.query(`${SELECT_BASE} WHERE a.id = $1`, [id]);
+  if (!rows[0]) throw { status: 404, message: 'Agendamento não encontrado.' };
+  return rows[0];
+}
 
-  return buscarPorId(banhistaId, agendamentoId);
-};
-
-const atualizarStatus = async (banhistaId, agendamentoId, status) => {
-  const statusValidos = ['agendado', 'confirmado', 'em_andamento', 'concluido', 'cancelado'];
-
-  if (!statusValidos.includes(status)) {
-    throw new AppError('Status invalido', 400);
-  }
-
-  const result = await query(
-    `UPDATE agendamentos
-     SET status = $3, atualizado_em = NOW()
-     WHERE id = $1 AND banhista_id = $2
-     RETURNING id`,
-    [agendamentoId, banhistaId, status]
+async function criarPeloCliente({ clienteId, petId, servicoId, dataHora, observacoes }) {
+  // Valida pet pertence ao cliente
+  const { rows: pet } = await pool.query(
+    'SELECT id FROM pets WHERE id = $1 AND cliente_id = $2 AND ativo = TRUE',
+    [petId, clienteId]
   );
+  if (!pet[0]) throw { status: 400, message: 'Pet inválido.' };
 
-  if (result.rows.length === 0) {
-    throw new AppError('Agendamento nao encontrado', 404);
-  }
+  // Valida serviço ativo
+  const { rows: srv } = await pool.query('SELECT preco FROM servicos WHERE id = $1 AND ativo = TRUE', [servicoId]);
+  if (!srv[0]) throw { status: 400, message: 'Serviço inválido.' };
 
-  return buscarPorId(banhistaId, agendamentoId);
-};
-
-const marcarPago = async (banhistaId, agendamentoId, formaPagamento) => {
-  const result = await query(
-    `UPDATE agendamentos
-     SET pago = true, forma_pagamento = $3, atualizado_em = NOW()
-     WHERE id = $1 AND banhista_id = $2
-     RETURNING id`,
-    [agendamentoId, banhistaId, formaPagamento || 'dinheiro']
+  const { rows } = await pool.query(
+    `INSERT INTO agendamentos (cliente_id, pet_id, servico_id, data_hora, observacoes, valor_cobrado, origem)
+     VALUES ($1,$2,$3,$4,$5,$6,'cliente') RETURNING id`,
+    [clienteId, petId, servicoId, dataHora, observacoes || null, srv[0].preco]
   );
+  return buscarPorId(rows[0].id);
+}
 
-  if (result.rows.length === 0) {
-    throw new AppError('Agendamento nao encontrado', 404);
-  }
+async function criarPeloAdmin({ servicoId, dataHora, clienteId, petId, nomeAvulso, telefoneAvulso, petNomeAvulso, observacoes, valorCobrado }) {
+  const { rows: srv } = await pool.query('SELECT preco FROM servicos WHERE id = $1', [servicoId]);
+  if (!srv[0]) throw { status: 400, message: 'Serviço inválido.' };
 
-  return buscarPorId(banhistaId, agendamentoId);
-};
-
-const cancelar = async (banhistaId, agendamentoId) => {
-  const result = await query(
-    `UPDATE agendamentos
-     SET status = 'cancelado', atualizado_em = NOW()
-     WHERE id = $1 AND banhista_id = $2
-     RETURNING id`,
-    [agendamentoId, banhistaId]
+  const { rows } = await pool.query(
+    `INSERT INTO agendamentos
+       (servico_id, data_hora, cliente_id, pet_id, nome_avulso, telefone_avulso, pet_nome_avulso, observacoes, valor_cobrado, origem)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'admin') RETURNING id`,
+    [servicoId, dataHora, clienteId || null, petId || null, nomeAvulso || null,
+     telefoneAvulso || null, petNomeAvulso || null, observacoes || null,
+     valorCobrado ?? srv[0].preco]
   );
+  return buscarPorId(rows[0].id);
+}
 
-  if (result.rows.length === 0) {
-    throw new AppError('Agendamento nao encontrado', 404);
+async function atualizarStatus(id, status, valorCobrado) {
+  const campos = ['status = $1'];
+  const params = [status];
+  if (valorCobrado !== undefined) {
+    params.push(valorCobrado);
+    campos.push(`valor_cobrado = $${params.length}`);
   }
-};
+  params.push(id);
+  campos.push(`atualizado_em = NOW()`);
 
-const avisarPronto = async (banhistaId, agendamentoId) => {
-  const agendamento = await buscarPorId(banhistaId, agendamentoId);
-
-  if (!agendamento.cliente?.telefone) {
-    throw new AppError('Cliente nao tem telefone cadastrado', 400);
-  }
-
-  // Buscar nome do negocio
-  const banhistaResult = await query(
-    'SELECT nome_negocio, nome FROM banhistas WHERE id = $1',
-    [banhistaId]
+  const { rows } = await pool.query(
+    `UPDATE agendamentos SET ${campos.join(', ')} WHERE id = $${params.length} RETURNING id`,
+    params
   );
-  const nomeNegocio = banhistaResult.rows[0]?.nome_negocio || banhistaResult.rows[0]?.nome || 'Pet Shop';
+  if (!rows[0]) throw { status: 404, message: 'Agendamento não encontrado.' };
+  return buscarPorId(rows[0].id);
+}
 
-  const mensagem = `${agendamento.cliente.nome}, o ${agendamento.pet.nome} ta lindo e pronto pra ir pra casa!\n\nPode vir buscar quando quiser.\n\nObrigada pela preferencia!\n- ${nomeNegocio}`;
-
-  try {
-    if (agendamento.fotoProntoUrl) {
-      const fotoUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}${agendamento.fotoProntoUrl}`;
-      await enviarMensagemComImagem(agendamento.cliente.telefone, mensagem, fotoUrl);
-    } else {
-      await enviarMensagemTexto(agendamento.cliente.telefone, mensagem);
-    }
-
-    // Marcar como enviado
-    await query(
-      'UPDATE agendamentos SET aviso_enviado = true, atualizado_em = NOW() WHERE id = $1',
-      [agendamentoId]
-    );
-
-    // Registrar log
-    await query(
-      `INSERT INTO mensagens_whatsapp (banhista_id, agendamento_id, telefone_destino, tipo, mensagem, status)
-       VALUES ($1, $2, $3, 'pronto', $4, 'enviado')`,
-      [banhistaId, agendamentoId, agendamento.cliente.telefone, mensagem]
-    );
-
-    return { success: true, message: 'Mensagem enviada com sucesso' };
-  } catch (error) {
-    // Registrar falha
-    await query(
-      `INSERT INTO mensagens_whatsapp (banhista_id, agendamento_id, telefone_destino, tipo, mensagem, status)
-       VALUES ($1, $2, $3, 'pronto', $4, 'falhou')`,
-      [banhistaId, agendamentoId, agendamento.cliente.telefone, mensagem]
-    );
-
-    throw new AppError('Erro ao enviar mensagem WhatsApp: ' + error.message, 500);
-  }
-};
-
-const atualizarFotoPronto = async (banhistaId, agendamentoId, fotoUrl) => {
-  const result = await query(
-    `UPDATE agendamentos
-     SET foto_pronto_url = $3, atualizado_em = NOW()
-     WHERE id = $1 AND banhista_id = $2
-     RETURNING id`,
-    [agendamentoId, banhistaId, fotoUrl]
+async function cancelarPeloCliente(id, clienteId) {
+  const { rows } = await pool.query(
+    `UPDATE agendamentos SET status = 'cancelado', atualizado_em = NOW()
+     WHERE id = $1 AND cliente_id = $2 AND status = 'pendente' RETURNING id`,
+    [id, clienteId]
   );
+  if (!rows[0]) throw { status: 404, message: 'Agendamento não encontrado ou não pode ser cancelado.' };
+  return buscarPorId(rows[0].id);
+}
 
-  if (result.rows.length === 0) {
-    throw new AppError('Agendamento nao encontrado', 404);
-  }
+async function listarDoCliente(clienteId) {
+  const { rows } = await pool.query(
+    `${SELECT_BASE} WHERE a.cliente_id = $1 ORDER BY a.data_hora DESC`,
+    [clienteId]
+  );
+  return rows;
+}
 
-  return buscarPorId(banhistaId, agendamentoId);
-};
-
-module.exports = {
-  listar,
-  listarHoje,
-  listarSemana,
-  criar,
-  buscarPorId,
-  atualizar,
-  atualizarStatus,
-  marcarPago,
-  cancelar,
-  avisarPronto,
-  atualizarFotoPronto
-};
+module.exports = { listar, agenda, buscarPorId, criarPeloCliente, criarPeloAdmin, atualizarStatus, cancelarPeloCliente, listarDoCliente };

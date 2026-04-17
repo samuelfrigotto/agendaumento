@@ -1,147 +1,69 @@
-const { validationResult } = require('express-validator');
-const agendamentosService = require('./agendamentos.service');
-const { processImage } = require('../../middlewares/upload');
+const service = require('./agendamentos.service');
 
-const listar = async (req, res, next) => {
+// Admin
+async function listar(req, res, next) {
   try {
-    const { dataInicio, dataFim, status, petId, clienteId } = req.query;
-    const agendamentos = await agendamentosService.listar(req.banhistaId, {
-      dataInicio,
-      dataFim,
-      status,
-      petId,
-      clienteId
+    const { semana, status, pagina, limite } = req.query;
+    const data = await service.listar({ semana, status, pagina: +pagina || 1, limite: +limite || 50 });
+    res.json(data);
+  } catch (err) { next(err); }
+}
+
+async function agenda(req, res, next) {
+  try {
+    const { inicio, fim } = req.query;
+    if (!inicio || !fim) return res.status(400).json({ erro: 'Parâmetros "inicio" e "fim" obrigatórios.' });
+    const data = await service.agenda(inicio, fim);
+    res.json(data);
+  } catch (err) { next(err); }
+}
+
+async function buscarPorId(req, res, next) {
+  try {
+    const data = await service.buscarPorId(+req.params.id);
+    res.json(data);
+  } catch (err) { next(err); }
+}
+
+async function criarAdmin(req, res, next) {
+  try {
+    const data = await service.criarPeloAdmin(req.body);
+    res.status(201).json(data);
+  } catch (err) { next(err); }
+}
+
+async function atualizarStatus(req, res, next) {
+  try {
+    const { status, valor_cobrado } = req.body;
+    const data = await service.atualizarStatus(+req.params.id, status, valor_cobrado);
+    res.json(data);
+  } catch (err) { next(err); }
+}
+
+// Cliente
+async function criarCliente(req, res, next) {
+  try {
+    const { petId, servicoId, dataHora, observacoes } = req.body;
+    const data = await service.criarPeloCliente({
+      clienteId: req.cliente.id,
+      petId, servicoId, dataHora, observacoes,
     });
-    res.json(agendamentos);
-  } catch (error) {
-    next(error);
-  }
-};
+    res.status(201).json(data);
+  } catch (err) { next(err); }
+}
 
-const listarHoje = async (req, res, next) => {
+async function cancelarCliente(req, res, next) {
   try {
-    const agendamentos = await agendamentosService.listarHoje(req.banhistaId);
-    res.json(agendamentos);
-  } catch (error) {
-    next(error);
-  }
-};
+    await service.cancelarPeloCliente(+req.params.id, req.cliente.id);
+    res.json({ mensagem: 'Agendamento cancelado.' });
+  } catch (err) { next(err); }
+}
 
-const listarSemana = async (req, res, next) => {
+async function meus(req, res, next) {
   try {
-    const { data } = req.query; // data base da semana
-    const agendamentos = await agendamentosService.listarSemana(req.banhistaId, data);
-    res.json(agendamentos);
-  } catch (error) {
-    next(error);
-  }
-};
+    const data = await service.listarDoCliente(req.cliente.id);
+    res.json(data);
+  } catch (err) { next(err); }
+}
 
-const criar = async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const agendamento = await agendamentosService.criar(req.banhistaId, req.body);
-    res.status(201).json(agendamento);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const buscarPorId = async (req, res, next) => {
-  try {
-    const agendamento = await agendamentosService.buscarPorId(req.banhistaId, req.params.id);
-    res.json(agendamento);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const atualizar = async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const agendamento = await agendamentosService.atualizar(req.banhistaId, req.params.id, req.body);
-    res.json(agendamento);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const atualizarStatus = async (req, res, next) => {
-  try {
-    const { status } = req.body;
-
-    if (!status) {
-      return res.status(400).json({ error: 'Status e obrigatorio' });
-    }
-
-    const agendamento = await agendamentosService.atualizarStatus(req.banhistaId, req.params.id, status);
-    res.json(agendamento);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const marcarPago = async (req, res, next) => {
-  try {
-    const { formaPagamento } = req.body;
-    const agendamento = await agendamentosService.marcarPago(req.banhistaId, req.params.id, formaPagamento);
-    res.json(agendamento);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const cancelar = async (req, res, next) => {
-  try {
-    await agendamentosService.cancelar(req.banhistaId, req.params.id);
-    res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-};
-
-const avisarPronto = async (req, res, next) => {
-  try {
-    const result = await agendamentosService.avisarPronto(req.banhistaId, req.params.id);
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const uploadFotoPronto = async (req, res, next) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Nenhuma imagem enviada' });
-    }
-
-    const fotoUrl = await processImage(req.file.buffer, req.banhistaId, 'pronto');
-    const agendamento = await agendamentosService.atualizarFotoPronto(req.banhistaId, req.params.id, fotoUrl);
-
-    res.json(agendamento);
-  } catch (error) {
-    next(error);
-  }
-};
-
-module.exports = {
-  listar,
-  listarHoje,
-  listarSemana,
-  criar,
-  buscarPorId,
-  atualizar,
-  atualizarStatus,
-  marcarPago,
-  cancelar,
-  avisarPronto,
-  uploadFotoPronto
-};
+module.exports = { listar, agenda, buscarPorId, criarAdmin, atualizarStatus, criarCliente, cancelarCliente, meus };

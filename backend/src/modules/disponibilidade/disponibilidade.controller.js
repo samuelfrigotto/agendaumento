@@ -1,61 +1,18 @@
-const disponibilidadeService = require('./disponibilidade.service');
+const service = require('./disponibilidade.service');
 
-// ─── Regras semanais (admin) ──────────────────────────────────────────────────
+const listarRegras    = (req, res, next) => service.listarRegras().then(d => res.json(d)).catch(next);
+const salvarRegras    = (req, res, next) => service.salvarRegras(req.body.regras).then(() => res.json({ mensagem: 'Disponibilidade salva.' })).catch(next);
+const listarBloqueados= (req, res, next) => service.listarBloqueados().then(d => res.json(d)).catch(next);
+const adicionarBloqueio=(req, res, next)=> service.adicionarBloqueio(req.body).then(d => res.status(201).json(d)).catch(next);
+const removerBloqueio = (req, res, next) => service.removerBloqueio(+req.params.id).then(() => res.json({ mensagem: 'Bloqueio removido.' })).catch(next);
 
-const listarRegras = async (req, res, next) => {
+async function slotsDisponiveis(req, res, next) {
   try {
-    const regras = await disponibilidadeService.listarRegras(req.banhistaId);
-    res.json({ regras });
-  } catch (error) {
-    next(error);
-  }
-};
+    const { data, duracao } = req.query;
+    if (!data) return res.status(400).json({ erro: 'Parâmetro "data" obrigatório (YYYY-MM-DD).' });
+    const slots = await service.slotsDisponiveis(data, parseInt(duracao) || 60);
+    res.json({ data, slots });
+  } catch (err) { next(err); }
+}
 
-const atualizarRegras = async (req, res, next) => {
-  try {
-    const { regras } = req.body;
-    const resultado = await disponibilidadeService.atualizarRegras(req.banhistaId, regras);
-    res.json({ regras: resultado });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ─── Bloqueios (admin) ────────────────────────────────────────────────────────
-
-const listarBloqueios = async (req, res, next) => {
-  try {
-    const apenasAtivos = req.query.ativos === 'true';
-    const bloqueios = await disponibilidadeService.listarBloqueios(req.banhistaId, apenasAtivos);
-    res.json({ bloqueios });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const criarBloqueio = async (req, res, next) => {
-  try {
-    const { startsAt, endsAt, reason } = req.body;
-    const bloqueio = await disponibilidadeService.criarBloqueio(req.banhistaId, { startsAt, endsAt, reason });
-    res.status(201).json(bloqueio);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const removerBloqueio = async (req, res, next) => {
-  try {
-    await disponibilidadeService.removerBloqueio(req.banhistaId, req.params.id);
-    res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-};
-
-module.exports = {
-  listarRegras,
-  atualizarRegras,
-  listarBloqueios,
-  criarBloqueio,
-  removerBloqueio
-};
+module.exports = { listarRegras, salvarRegras, listarBloqueados, adicionarBloqueio, removerBloqueio, slotsDisponiveis };

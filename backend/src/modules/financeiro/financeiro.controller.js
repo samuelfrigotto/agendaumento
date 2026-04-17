@@ -1,35 +1,31 @@
-const financeiroService = require('./financeiro.service');
+const service = require('./financeiro.service');
 
-const getResumo = async (req, res, next) => {
+function parseMesAno(req) {
+  const now = new Date();
+  return {
+    mes:  parseInt(req.query.mes)  || now.getMonth() + 1,
+    ano:  parseInt(req.query.ano)  || now.getFullYear(),
+  };
+}
+
+async function resumo(req, res, next) {
   try {
-    const resumo = await financeiroService.getResumo(req.banhistaId);
-    res.json(resumo);
-  } catch (error) {
-    next(error);
-  }
-};
+    const data = await service.resumo(parseMesAno(req));
+    res.json(data);
+  } catch (err) { next(err); }
+}
 
-const getHistorico = async (req, res, next) => {
+async function listarServicos(req, res, next) {
   try {
-    const { meses = 6 } = req.query;
-    const historico = await financeiroService.getHistorico(req.banhistaId, parseInt(meses));
-    res.json(historico);
-  } catch (error) {
-    next(error);
-  }
-};
+    const { mes, ano } = parseMesAno(req);
+    const data = await service.listarServicos({
+      mes, ano,
+      status: req.query.status,
+      pagina: +req.query.pagina || 1,
+      limite: +req.query.limite || 50,
+    });
+    res.json(data);
+  } catch (err) { next(err); }
+}
 
-const getPendentes = async (req, res, next) => {
-  try {
-    const pendentes = await financeiroService.getPendentes(req.banhistaId);
-    res.json(pendentes);
-  } catch (error) {
-    next(error);
-  }
-};
-
-module.exports = {
-  getResumo,
-  getHistorico,
-  getPendentes
-};
+module.exports = { resumo, listarServicos };

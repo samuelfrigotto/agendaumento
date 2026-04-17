@@ -60,7 +60,7 @@ services:
       WHATSAPP_INSTANCE_NAME: ${WHATSAPP_INSTANCE_NAME:-agendaumento}
 
       # Frontend URL (CORS)
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
 
       # Timezone
       TZ: America/Sao_Paulo

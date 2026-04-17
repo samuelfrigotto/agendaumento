@@ -1,59 +1,52 @@
-require('dotenv').config();
-
-const fs = require('fs').promises;
+const fs   = require('fs');
 const path = require('path');
-const { pool, query } = require('../config/database');
+const pool = require('../config/database');
 
-const MIGRATIONS_DIR = path.join(__dirname, '../../migrations');
-
-async function runMigrations() {
-  console.log('Iniciando migrações...\n');
-
+async function migrate() {
+  const client = await pool.connect();
   try {
-    // Criar tabela de controle de migrações
-    await query(`
-      CREATE TABLE IF NOT EXISTS migrations (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE,
-        executed_at TIMESTAMP DEFAULT NOW()
+    // Tabela de controle de migrations
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS _migrations (
+        id         SERIAL PRIMARY KEY,
+        filename   VARCHAR(255) NOT NULL UNIQUE,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
 
-    // Ler arquivos de migração
-    const files = await fs.readdir(MIGRATIONS_DIR);
-    const sqlFiles = files.filter(f => f.endsWith('.sql')).sort();
+    const migrationsDir = path.join(__dirname, '../../migrations');
+    const files = fs.readdirSync(migrationsDir)
+      .filter(f => f.endsWith('.sql'))
+      .sort();
 
-    // Buscar migrações já executadas
-    const executed = await query('SELECT name FROM migrations');
-    const executedNames = executed.rows.map(r => r.name);
-
-    let migrationsRun = 0;
-
-    for (const file of sqlFiles) {
-      if (executedNames.includes(file)) {
-        console.log(`✓ ${file} (já executada)`);
+    for (const file of files) {
+      const { rows } = await client.query(
+        'SELECT 1 FROM _migrations WHERE filename = $1',
+        [file]
+      );
+      if (rows.length > 0) {
+        console.log(`[migrate] já aplicada: ${file}`);
         continue;
       }
 
-      console.log(`→ Executando ${file}...`);
-
-      const filePath = path.join(MIGRATIONS_DIR, file);
-      const sql = await fs.readFile(filePath, 'utf8');
-
-      await query(sql);
-      await query('INSERT INTO migrations (name) VALUES ($1)', [file]);
-
-      console.log(`✓ ${file} (executada com sucesso)`);
-      migrationsRun++;
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      await client.query('BEGIN');
+      await client.query(sql);
+      await client.query('INSERT INTO _migrations (filename) VALUES ($1)', [file]);
+      await client.query('COMMIT');
+      console.log(`[migrate] aplicada: ${file}`);
     }
 
-    console.log(`\nMigrações concluídas. ${migrationsRun} nova(s) migração(ões) executada(s).`);
-  } catch (error) {
-    console.error('Erro ao executar migrações:', error);
-    process.exit(1);
+    console.log('[migrate] concluído.');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[migrate] erro:', err.message);
+    throw err;
   } finally {
-    await pool.end();
+    client.release();
   }
 }
 
-runMigrations();
+migrate()
+  .then(() => process.exit(0))
+  .catch(() => process.exit(1));

@@ -1,186 +1,85 @@
-# Agendaumento
+PLANO TÉCNICO — Agendaumento
+============================================================
 
-Sistema SaaS para agendamento de banho e tosa de pets.
+ESCOPO
+  Descrição : Sistema de agendamento de serviços para clínica veterinária
+  Complexidade : 1/5 (Protótipo rápido)
+  SLA esperado : 99%
+  Esforço estimado : 2 dia(s)
 
-## Stack
+ESCALA & TRÁFEGO
+  Clientes/dia : 50
+  Usuários simultâneos : 10
+  Pico de tráfego : 3×
+  Tamanho do banco : 2/5 (1k–100k)
+  Crescimento esperado : estável
+  Multi-tenant : não
+  LGPD/GDPR : não agora
 
-- **Backend**: Node.js + Express
-- **Frontend**: Angular 21
-- **Banco**: PostgreSQL 16
-- **Infra**: Docker + Nginx + Certbot (SSL)
+STACK
+  Linguagem : Node
+  Framework : Express
+  Banco de dados : PostgreSQL
+  Cache : Nenhum
+  Hospedagem : Railway
 
-## Arquitetura
+API & COMUNICAÇÃO
+  Tipo : REST
+  Versionamento : não
+  Paginação : sim
+  Rate limiting : sim
 
-```
-                    Internet
-                        │
-                        ▼
-        https://agendaumento.couriersknowledge.com
-                        │
-                        ▼
-┌───────────────────────────────────────────────────────┐
-│                       VPS                              │
-│                                                        │
-│   ┌────────────────────────────────────────────────┐  │
-│   │                   Nginx                         │  │
-│   │  • SSL/HTTPS (Let's Encrypt)                   │  │
-│   │  • Serve frontend (arquivos estaticos)         │  │
-│   │  • Proxy reverso /api → localhost:3000         │  │
-│   └────────────────────────────────────────────────┘  │
-│                        │                               │
-│         ┌──────────────┴──────────────┐               │
-│         │                             │               │
-│         ▼                             ▼               │
-│   ~/frontend/                    Docker               │
-│   (HTML, CSS, JS)         ┌─────────────────────┐    │
-│                           │   API    │    DB    │    │
-│                           │  :3000   │  :5432   │    │
-│                           │ Node.js  │ Postgres │    │
-│                           └─────────────────────┘    │
-└───────────────────────────────────────────────────────┘
-```
+AUTENTICAÇÃO & SEGURANÇA
+  Auth : JWT
+  Roles : admin, user
+  2FA : não
+  CORS : sim
+  HTTPS/Helmet : sim
+  Validação de entrada : sim
+  Proteção SQLi/XSS : sim
+  IP Whitelist : não
 
-## Decisoes Tecnicas
+INFRAESTRUTURA & DEPLOY
+  CI/CD : Nenhum
+  Ambientes : prod
+  Docker : sim
 
-### Por que Docker?
+DADOS & ARMAZENAMENTO
+  Backup : Semanal
+  Armazenamento de arquivos : Nenhum
+  Migrations : sim
 
-- **Isolamento**: Cada servico roda em seu proprio container
-- **Reproducibilidade**: Mesmo ambiente em dev e producao
-- **Facilidade**: Um comando sobe tudo (`docker compose up`)
+OBSERVABILIDADE
+  Logs : Console
+  Monitoramento : Nenhum
+  Sentry : não
+  Alertas : não
 
-### Por que frontend fora do Docker?
+RECURSOS EXTRAS
+  Filas/Workers : não
+  WebSockets : não
+  i18n : não
+  Notificações : E-mail, WhatsApp
+  Recursos técnicos ativos : CORS, HTTPS/Helmet, Validação, Migrations, Docker, Rate Limiting
 
-- Angular compila para arquivos estaticos (HTML/CSS/JS)
-- Nginx serve arquivos estaticos de forma muito eficiente
-- Nao precisa de container extra = menos recursos
+============================================================
+FUNCIONALIDADES & NECESSIDADES DO PROJETO
 
-### Por que PostgreSQL?
+Para esse projeto eu preciso de 2 visões diferentes, um login para usuários, e um login e painel de controle para o admin, mas o do admin sem opção de cadastro, apenas com 3 contas de admin já pré setadas no banco de dados. Como é um projeto mais simples a parte do admin vai ficar oculta no www.admin.aquivaimeusite.com/login, e depois do login o admin deve ter as seguintes funções:
 
-- Suporte nativo a UUID (usado como primary key)
-- JSONB para dados flexiveis
-- Robusto e confiavel para producao
+- ver os clientes cadastrados
+- ver os pets cadastrados de cada cliente
+- ver uma agenda com os serviços semanais já solicitados pelos clientes
+- ter a opção de marcar serviços por fora do site
+- ter a opção de configurar horários disponíveis para os clientes solicitarem os serviços
+- ver em uma aba financeira os serviços solicitados, e ter a opção de marcar como concluído ou cancelado
+- ver uma tela para cadastrar os serviços disponíveis e os pets que podem ser atendidos
+- ver uma aba de configurações para configurar SMTP do email e WhatsApp
 
-### Por que Node.js + Express?
+Já na parte do usuário:
+- página inicial com agendamento, mesmo sem login
+- cadastro do pet
+- login e registro com nome completo, CPF, telefone, endereço e senha
 
-- JavaScript no frontend e backend (mesma linguagem)
-- Grande ecossistema de pacotes (npm)
-- Async por padrao (bom para I/O)
-
-## Como rodar localmente
-
-### Pre-requisitos
-
-- Node.js 20.19+
-- Docker e Docker Compose
-- Git
-
-### Backend (com Docker)
-
-```bash
-# Clonar repositorio
-git clone https://github.com/seu-usuario/agendaumento.git
-cd agendaumento
-
-# Configurar variaveis de ambiente
-cp .env.example .env
-# Editar .env com suas configuracoes
-
-# Subir containers
-docker compose up -d
-
-# Ver logs
-docker compose logs -f
-
-# Acessar API
-curl http://localhost:3000/api/health
-```
-
-### Frontend (local)
-
-```bash
-cd frontend
-npm install
-npm start
-# Acesse http://localhost:4200
-```
-
-## Deploy
-
-### Automatizado (recomendado)
-
-```powershell
-# Deploy completo
-.\deploy.ps1 -m "descricao da mudanca"
-
-# Apenas backend
-.\deploy.ps1 -backend
-
-# Apenas frontend
-.\deploy.ps1 -frontend
-```
-
-### Manual
-
-```bash
-# 1. Enviar arquivos
-scp -r ./backend/* user@vps:~/agendaumento/backend/
-scp ./docker-compose.yml user@vps:~/agendaumento/
-
-# 2. No VPS: rebuild
-cd ~/agendaumento
-docker compose down
-docker compose up -d --build
-```
-
-## Estrutura do Projeto
-
-```
-agendaumento/
-├── backend/
-│   ├── src/
-│   │   ├── config/          # Database, WhatsApp
-│   │   ├── middlewares/     # Auth, error handling
-│   │   ├── modules/         # Features (auth, clientes, pets, etc)
-│   │   └── server.js        # Entry point
-│   ├── migrations/          # SQL migrations
-│   ├── Dockerfile
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── core/        # Services, guards, interceptors
-│   │   │   ├── features/    # Pages (agenda, clientes, etc)
-│   │   │   └── shared/      # Components reutilizaveis
-│   │   └── styles.scss
-│   └── package.json
-├── docker-compose.yml
-├── deploy.ps1
-├── .env.example
-└── README.md
-```
-
-## Comandos Uteis
-
-| Comando | Descricao |
-|---------|-----------|
-| `docker compose ps` | Ver status dos containers |
-| `docker compose logs -f` | Ver logs em tempo real |
-| `docker compose down` | Parar containers |
-| `docker compose up -d --build` | Rebuild e iniciar |
-| `docker compose exec db psql -U agendaumento` | Acessar banco |
-
-## Endpoints da API
-
-| Metodo | Rota | Descricao |
-|--------|------|-----------|
-| GET | `/api/health` | Health check |
-| POST | `/api/auth/registro` | Criar conta |
-| POST | `/api/auth/login` | Login |
-| GET | `/api/clientes` | Listar clientes |
-| GET | `/api/pets` | Listar pets |
-| GET | `/api/agendamentos` | Listar agendamentos |
-| GET | `/api/agendamentos/hoje` | Agendamentos de hoje |
-
-## Licenca
-
-Projeto privado - todos os direitos reservados.
+Sistema de notificações lembrando o usuário no dia e 2 horas antes do serviço.
+============================================================

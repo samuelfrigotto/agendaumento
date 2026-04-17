@@ -1,180 +1,109 @@
-const { query } = require('../../config/database');
-const { AppError } = require('../../middlewares/errorHandler');
+const pool = require('../../config/database');
 
-const INTERVALO_MIN = 30; // granularidade dos slots em minutos
-
-// ─── Regras semanais ──────────────────────────────────────────────────────────
-
-const listarRegras = async (banhistaId) => {
-  const result = await query(
-    `SELECT id, day_of_week, start_time, end_time, ativo
-     FROM availability_rules
-     WHERE banhista_id = $1
-     ORDER BY day_of_week, start_time`,
-    [banhistaId]
+async function listarRegras() {
+  const { rows } = await pool.query(
+    'SELECT id, dia_semana, hora_inicio, hora_fim, ativo FROM disponibilidade ORDER BY dia_semana, hora_inicio'
   );
-  return result.rows;
-};
+  return rows;
+}
 
-// Substitui todas as regras do banhista de uma vez (mais simples que upsert individual)
-const atualizarRegras = async (banhistaId, regras) => {
-  await query('DELETE FROM availability_rules WHERE banhista_id = $1', [banhistaId]);
-
-  if (!regras || regras.length === 0) return [];
-
-  const placeholders = regras.map((_, i) => {
-    const b = i * 4;
-    return `($${b + 1}, $${b + 2}, $${b + 3}::TIME, $${b + 4}::TIME)`;
-  }).join(', ');
-
-  const params = regras.flatMap(r => [
-    banhistaId,
-    r.dayOfWeek,
-    r.startTime,
-    r.endTime
-  ]);
-
-  const result = await query(
-    `INSERT INTO availability_rules (banhista_id, day_of_week, start_time, end_time)
-     VALUES ${placeholders}
-     RETURNING id, day_of_week, start_time, end_time, ativo`,
-    params
-  );
-
-  return result.rows;
-};
-
-// ─── Bloqueios ────────────────────────────────────────────────────────────────
-
-const listarBloqueios = async (banhistaId, apenasAtivos = false) => {
-  let sql = `
-    SELECT id, starts_at, ends_at, reason, criado_em
-    FROM blocked_periods
-    WHERE banhista_id = $1
-  `;
-  if (apenasAtivos) sql += ' AND ends_at > NOW()';
-  sql += ' ORDER BY starts_at ASC';
-
-  const result = await query(sql, [banhistaId]);
-  return result.rows;
-};
-
-const criarBloqueio = async (banhistaId, { startsAt, endsAt, reason }) => {
-  const result = await query(
-    `INSERT INTO blocked_periods (banhista_id, starts_at, ends_at, reason)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id, starts_at, ends_at, reason, criado_em`,
-    [banhistaId, startsAt, endsAt, reason || null]
-  );
-  return result.rows[0];
-};
-
-const removerBloqueio = async (banhistaId, bloqueioId) => {
-  const result = await query(
-    `DELETE FROM blocked_periods WHERE id = $1 AND banhista_id = $2 RETURNING id`,
-    [bloqueioId, banhistaId]
-  );
-
-  if (result.rows.length === 0) {
-    throw new AppError('Bloqueio nao encontrado', 404);
+async function salvarRegras(regras) {
+  // Substitui tudo (admin redefine disponibilidade inteira)
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM disponibilidade');
+    for (const r of regras) {
+      await client.query(
+        'INSERT INTO disponibilidade (dia_semana, hora_inicio, hora_fim, ativo) VALUES ($1,$2,$3,$4)',
+        [r.dia_semana, r.hora_inicio, r.hora_fim, r.ativo !== false]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-};
+}
 
-// ─── Motor de slots ───────────────────────────────────────────────────────────
+async function listarBloqueados() {
+  const { rows } = await pool.query(
+    'SELECT id, data_inicio, data_fim, motivo FROM periodos_bloqueados ORDER BY data_inicio'
+  );
+  return rows;
+}
 
-// Calcula slots disponíveis para uma data e duração de serviço.
-// Usado tanto pelas rotas públicas (cliente) quanto pelo admin (agenda).
-const calcularSlots = async (banhistaId, data, duracaoMin) => {
-  const dataBase = new Date(data + 'T00:00:00');
-  const dayOfWeek = dataBase.getDay(); // 0=dom, 1=seg, ..., 6=sab
+async function adicionarBloqueio({ data_inicio, data_fim, motivo }) {
+  const { rows } = await pool.query(
+    'INSERT INTO periodos_bloqueados (data_inicio, data_fim, motivo) VALUES ($1,$2,$3) RETURNING *',
+    [data_inicio, data_fim, motivo || null]
+  );
+  return rows[0];
+}
 
-  // 1. Regras do dia da semana
-  const regrasResult = await query(
-    `SELECT start_time, end_time
-     FROM availability_rules
-     WHERE banhista_id = $1 AND day_of_week = $2 AND ativo = true
-     ORDER BY start_time`,
-    [banhistaId, dayOfWeek]
+async function removerBloqueio(id) {
+  await pool.query('DELETE FROM periodos_bloqueados WHERE id = $1', [id]);
+}
+
+// Retorna slots disponíveis para uma data específica
+async function slotsDisponiveis(dataStr, duracaoMinutos = 60) {
+  const data  = new Date(dataStr + 'T00:00:00');
+  const diaSemana = data.getDay(); // 0=dom
+
+  // Verifica se a data está bloqueada
+  const { rows: bloq } = await pool.query(
+    `SELECT 1 FROM periodos_bloqueados
+     WHERE data_inicio <= $1 AND data_fim >= $1`,
+    [dataStr]
+  );
+  if (bloq.length > 0) return [];
+
+  // Regras do dia
+  const { rows: regras } = await pool.query(
+    'SELECT hora_inicio, hora_fim FROM disponibilidade WHERE dia_semana = $1 AND ativo = TRUE',
+    [diaSemana]
+  );
+  if (regras.length === 0) return [];
+
+  // Agendamentos já marcados nesse dia
+  const { rows: ocupados } = await pool.query(
+    `SELECT data_hora, s.duracao_minutos
+     FROM agendamentos a
+     JOIN servicos s ON s.id = a.servico_id
+     WHERE DATE(data_hora AT TIME ZONE 'America/Sao_Paulo') = $1
+       AND a.status NOT IN ('cancelado')`,
+    [dataStr]
   );
 
-  if (regrasResult.rows.length === 0) {
-    return []; // Dia sem atendimento configurado
-  }
-
-  // 2. Bloqueios que se sobrepõem ao dia
-  const diaInicio = new Date(data + 'T00:00:00');
-  const diaFim = new Date(data + 'T23:59:59');
-
-  const bloqueiosResult = await query(
-    `SELECT starts_at, ends_at FROM blocked_periods
-     WHERE banhista_id = $1
-       AND starts_at < $3
-       AND ends_at > $2`,
-    [banhistaId, diaInicio.toISOString(), diaFim.toISOString()]
-  );
-
-  // 3. Agendamentos ativos do dia
-  const agendamentosResult = await query(
-    `SELECT data_hora, ends_at FROM agendamentos
-     WHERE banhista_id = $1
-       AND data_hora < $3
-       AND ends_at > $2
-       AND status IN ('agendado', 'confirmado', 'em_andamento')`,
-    [banhistaId, diaInicio.toISOString(), diaFim.toISOString()]
-  );
-
-  const bloqueios = bloqueiosResult.rows;
-  const agendamentos = agendamentosResult.rows;
-
-  // 4. Gerar slots dentro de cada janela de atendimento
   const slots = [];
+  for (const regra of regras) {
+    const [hi, mi] = regra.hora_inicio.split(':').map(Number);
+    const [hf, mf] = regra.hora_fim.split(':').map(Number);
+    let cur = hi * 60 + mi;
+    const fim = hf * 60 + mf;
 
-  for (const regra of regrasResult.rows) {
-    // TIME vem como "HH:MM:SS" do pg
-    const [hIni, mIni] = regra.start_time.split(':').map(Number);
-    const [hFim, mFim] = regra.end_time.split(':').map(Number);
+    while (cur + duracaoMinutos <= fim) {
+      const hh = String(Math.floor(cur / 60)).padStart(2, '0');
+      const mm = String(cur % 60).padStart(2, '0');
+      const slotStr = `${dataStr}T${hh}:${mm}:00-03:00`;
+      const slotDt  = new Date(slotStr);
 
-    const janelaFim = new Date(dataBase);
-    janelaFim.setHours(hFim, mFim, 0, 0);
+      // Verifica conflito
+      const conflito = ocupados.some(o => {
+        const oDt  = new Date(o.data_hora);
+        const oFim = new Date(oDt.getTime() + o.duracao_minutos * 60000);
+        const sFim = new Date(slotDt.getTime() + duracaoMinutos * 60000);
+        return slotDt < oFim && sFim > oDt;
+      });
 
-    let cursor = new Date(dataBase);
-    cursor.setHours(hIni, mIni, 0, 0);
-
-    while (cursor < janelaFim) {
-      const slotFim = new Date(cursor.getTime() + duracaoMin * 60000);
-
-      // Slot deve terminar dentro da janela de atendimento
-      if (slotFim > janelaFim) break;
-
-      const bloqueado = bloqueios.some(b =>
-        cursor < new Date(b.ends_at) && slotFim > new Date(b.starts_at)
-      );
-
-      const ocupado = agendamentos.some(a =>
-        cursor < new Date(a.ends_at) && slotFim > new Date(a.data_hora)
-      );
-
-      if (!bloqueado && !ocupado) {
-        slots.push({
-          hora: cursor.toTimeString().slice(0, 5),
-          dataHora: cursor.toISOString()
-        });
-      }
-
-      cursor = new Date(cursor.getTime() + INTERVALO_MIN * 60000);
+      if (!conflito) slots.push(`${hh}:${mm}`);
+      cur += duracaoMinutos;
     }
   }
 
-  slots.sort((a, b) => a.dataHora.localeCompare(b.dataHora));
-
   return slots;
-};
+}
 
-module.exports = {
-  listarRegras,
-  atualizarRegras,
-  listarBloqueios,
-  criarBloqueio,
-  removerBloqueio,
-  calcularSlots
-};
+module.exports = { listarRegras, salvarRegras, listarBloqueados, adicionarBloqueio, removerBloqueio, slotsDisponiveis };

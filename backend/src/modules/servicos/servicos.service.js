@@ -1,99 +1,107 @@
-const { query } = require('../../config/database');
-const { AppError } = require('../../middlewares/errorHandler');
+const pool = require('../../config/database');
 
-const listar = async (banhistaId) => {
-  const result = await query(
-    `SELECT id, nome, duracao_min, preco_pequeno, preco_medio, preco_grande, preco_gigante, categoria, ativo
-     FROM servicos
-     WHERE banhista_id = $1
-     ORDER BY categoria ASC, nome ASC`,
-    [banhistaId]
+// Busca um serviço completo (com tipos_animais) por id — usado após criar/atualizar
+async function _buscarCompleto(id) {
+  const { rows } = await pool.query(
+    `SELECT s.id, s.nome, s.descricao, s.preco, s.duracao_minutos, s.ativo,
+            COALESCE(
+              json_agg(json_build_object('id', ta.id, 'nome', ta.nome))
+                FILTER (WHERE ta.id IS NOT NULL), '[]'
+            ) AS tipos_animais
+     FROM servicos s
+     LEFT JOIN servicos_tipos_animais sta ON sta.servico_id = s.id
+     LEFT JOIN tipos_animais ta ON ta.id = sta.tipo_animal_id
+     WHERE s.id = $1
+     GROUP BY s.id`,
+    [id]
   );
+  if (!rows[0]) throw { status: 404, message: 'Serviço não encontrado.' };
+  return rows[0];
+}
 
-  return result.rows.map(s => ({
-    id: s.id,
-    nome: s.nome,
-    duracaoMin: s.duracao_min,
-    precoPequeno: s.preco_pequeno,
-    precoMedio: s.preco_medio,
-    precoGrande: s.preco_grande,
-    precoGigante: s.preco_gigante,
-    categoria: s.categoria || 'banho_tosa',
-    ativo: s.ativo
-  }));
-};
-
-const criar = async (banhistaId, dados) => {
-  const result = await query(
-    `INSERT INTO servicos (banhista_id, nome, duracao_min, preco_pequeno, preco_medio, preco_grande, preco_gigante, categoria)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING id, nome, duracao_min, preco_pequeno, preco_medio, preco_grande, preco_gigante, categoria, ativo`,
-    [banhistaId, dados.nome, dados.duracaoMin, dados.precoPequeno, dados.precoMedio, dados.precoGrande, dados.precoGigante, dados.categoria || 'banho_tosa']
+async function listar({ apenasAtivos = true } = {}) {
+  const { rows } = await pool.query(
+    `SELECT s.id, s.nome, s.descricao, s.preco, s.duracao_minutos, s.ativo,
+            COALESCE(
+              json_agg(json_build_object('id', ta.id, 'nome', ta.nome))
+                FILTER (WHERE ta.id IS NOT NULL), '[]'
+            ) AS tipos_animais
+     FROM servicos s
+     LEFT JOIN servicos_tipos_animais sta ON sta.servico_id = s.id
+     LEFT JOIN tipos_animais ta ON ta.id = sta.tipo_animal_id
+     ${apenasAtivos ? 'WHERE s.ativo = TRUE' : ''}
+     GROUP BY s.id
+     ORDER BY s.nome`
   );
+  return rows;
+}
 
-  const s = result.rows[0];
-  return {
-    id: s.id,
-    nome: s.nome,
-    duracaoMin: s.duracao_min,
-    precoPequeno: s.preco_pequeno,
-    precoMedio: s.preco_medio,
-    precoGrande: s.preco_grande,
-    precoGigante: s.preco_gigante,
-    categoria: s.categoria,
-    ativo: s.ativo
-  };
-};
+async function criar({ nome, descricao, preco, duracao_minutos, tipos_animais }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `INSERT INTO servicos (nome, descricao, preco, duracao_minutos)
+       VALUES ($1,$2,$3,$4) RETURNING id`,
+      [nome, descricao || null, preco, duracao_minutos || 60]
+    );
+    const id = rows[0].id;
 
-const atualizar = async (banhistaId, servicoId, dados) => {
-  const result = await query(
-    `UPDATE servicos
-     SET nome = COALESCE($3, nome),
-         duracao_min = COALESCE($4, duracao_min),
-         preco_pequeno = $5,
-         preco_medio = $6,
-         preco_grande = $7,
-         preco_gigante = $8,
-         categoria = COALESCE($9, categoria),
-         ativo = COALESCE($10, ativo)
-     WHERE id = $1 AND banhista_id = $2
-     RETURNING id, nome, duracao_min, preco_pequeno, preco_medio, preco_grande, preco_gigante, categoria, ativo`,
-    [servicoId, banhistaId, dados.nome, dados.duracaoMin, dados.precoPequeno, dados.precoMedio, dados.precoGrande, dados.precoGigante, dados.categoria, dados.ativo]
-  );
-
-  if (result.rows.length === 0) {
-    throw new AppError('Servico nao encontrado', 404);
+    if (tipos_animais?.length) {
+      for (const taId of tipos_animais) {
+        await client.query(
+          'INSERT INTO servicos_tipos_animais (servico_id, tipo_animal_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+          [id, taId]
+        );
+      }
+    }
+    await client.query('COMMIT');
+    return _buscarCompleto(id);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
+}
 
-  const s = result.rows[0];
-  return {
-    id: s.id,
-    nome: s.nome,
-    duracaoMin: s.duracao_min,
-    precoPequeno: s.preco_pequeno,
-    precoMedio: s.preco_medio,
-    precoGrande: s.preco_grande,
-    precoGigante: s.preco_gigante,
-    categoria: s.categoria,
-    ativo: s.ativo
-  };
-};
+async function atualizar(id, { nome, descricao, preco, duracao_minutos, ativo, tipos_animais }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `UPDATE servicos
+       SET nome            = COALESCE($1, nome),
+           descricao       = COALESCE($2, descricao),
+           preco           = COALESCE($3, preco),
+           duracao_minutos = COALESCE($4, duracao_minutos),
+           ativo           = COALESCE($5, ativo)
+       WHERE id = $6 RETURNING id`,
+      [nome||null, descricao||null, preco||null, duracao_minutos||null, ativo!==undefined?ativo:null, id]
+    );
+    if (!rows[0]) throw { status: 404, message: 'Serviço não encontrado.' };
 
-const remover = async (banhistaId, servicoId) => {
-  // Soft delete - apenas desativa
-  const result = await query(
-    'UPDATE servicos SET ativo = false WHERE id = $1 AND banhista_id = $2 RETURNING id',
-    [servicoId, banhistaId]
-  );
-
-  if (result.rows.length === 0) {
-    throw new AppError('Servico nao encontrado', 404);
+    if (tipos_animais !== undefined) {
+      await client.query('DELETE FROM servicos_tipos_animais WHERE servico_id = $1', [id]);
+      for (const taId of tipos_animais) {
+        await client.query(
+          'INSERT INTO servicos_tipos_animais (servico_id, tipo_animal_id) VALUES ($1,$2)',
+          [id, taId]
+        );
+      }
+    }
+    await client.query('COMMIT');
+    return _buscarCompleto(id);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-};
+}
 
-module.exports = {
-  listar,
-  criar,
-  atualizar,
-  remover
-};
+async function remover(id) {
+  await pool.query('UPDATE servicos SET ativo = FALSE WHERE id = $1', [id]);
+}
+
+module.exports = { listar, criar, atualizar, remover, _buscarCompleto };

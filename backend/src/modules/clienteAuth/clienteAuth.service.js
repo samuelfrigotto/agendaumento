@@ -1,168 +1,75 @@
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { query } = require('../../config/database');
-const { AppError } = require('../../middlewares/errorHandler');
+const jwt    = require('jsonwebtoken');
+const pool   = require('../../config/database');
+const env    = require('../../config/env');
 
-const SALT_ROUNDS = 12;
+async function registrar({ nome, cpf, telefone, endereco, email, senha }) {
+  // CPF apenas dígitos para comparação
+  const cpfLimpo = cpf.replace(/\D/g, '');
 
-// ID do banhista de demonstracao (configurar no .env ou usar o primeiro cadastrado)
-const getDemoBanhistaId = async () => {
-  if (process.env.DEMO_BANHISTA_ID) {
-    return process.env.DEMO_BANHISTA_ID;
-  }
-  // Fallback: pegar o primeiro banhista ativo
-  const result = await query('SELECT id FROM banhistas WHERE ativo = true LIMIT 1');
-  if (result.rows.length === 0) {
-    throw new AppError('Nenhum estabelecimento disponivel', 500);
-  }
-  return result.rows[0].id;
-};
-
-const gerarTokens = (cliente, banhistaId) => {
-  const accessToken = jwt.sign(
-    {
-      clienteId: cliente.id,
-      email: cliente.email_auth,
-      banhistaId: banhistaId,
-      role: 'cliente'
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  const existe = await pool.query(
+    'SELECT id FROM clientes WHERE cpf = $1 OR (email IS NOT NULL AND email = $2)',
+    [cpfLimpo, email || null]
   );
-
-  const refreshToken = jwt.sign(
-    {
-      clienteId: cliente.id,
-      type: 'refresh',
-      role: 'cliente'
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' }
-  );
-
-  return { accessToken, refreshToken };
-};
-
-const registrar = async ({ nome, email, senha, cpf, telefone }) => {
-  const banhistaId = await getDemoBanhistaId();
-
-  // Verificar se email ja existe
-  const emailExistente = await query(
-    'SELECT id FROM clientes WHERE email_auth = $1',
-    [email.toLowerCase()]
-  );
-
-  if (emailExistente.rows.length > 0) {
-    throw new AppError('Email ja cadastrado', 409);
+  if (existe.rows.length > 0) {
+    throw { status: 409, message: 'CPF ou e-mail já cadastrado.' };
   }
 
-  // Verificar se CPF ja existe
-  const cpfExistente = await query(
-    'SELECT id FROM clientes WHERE cpf = $1',
-    [cpf]
+  const hash = await bcrypt.hash(senha, 12);
+  const { rows } = await pool.query(
+    `INSERT INTO clientes (nome, cpf, telefone, endereco, email, senha_hash)
+     VALUES ($1,$2,$3,$4,$5,$6)
+     RETURNING id, nome, cpf, telefone, email`,
+    [nome, cpfLimpo, telefone, endereco || null, email || null, hash]
   );
 
-  if (cpfExistente.rows.length > 0) {
-    throw new AppError('CPF ja cadastrado', 409);
+  const cliente = rows[0];
+  const token = jwt.sign(
+    { id: cliente.id, nome: cliente.nome, role: 'cliente' },
+    env.JWT_SECRET,
+    { expiresIn: env.JWT_EXPIRES_IN }
+  );
+
+  return { token, cliente };
+}
+
+async function login({ cpf, email, senha }) {
+  // Permite login por CPF ou e-mail
+  let query, param;
+  if (cpf) {
+    query = 'SELECT * FROM clientes WHERE cpf = $1 AND ativo = TRUE';
+    param = cpf.replace(/\D/g, '');
+  } else {
+    query = 'SELECT * FROM clientes WHERE email = $1 AND ativo = TRUE';
+    param = email;
   }
 
-  // Hash da senha
-  const senhaHash = await bcrypt.hash(senha, SALT_ROUNDS);
+  const { rows } = await pool.query(query, [param]);
+  const cliente = rows[0];
+  if (!cliente) throw { status: 401, message: 'Credenciais inválidas.' };
 
-  // Inserir cliente
-  const result = await query(
-    `INSERT INTO clientes (banhista_id, nome, telefone, email, email_auth, senha_hash, cpf, ativo)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, true)
-     RETURNING id, nome, telefone, email_auth, cpf, criado_em`,
-    [banhistaId, nome, telefone || '', email.toLowerCase(), email.toLowerCase(), senhaHash, cpf]
+  const ok = await bcrypt.compare(senha, cliente.senha_hash);
+  if (!ok) throw { status: 401, message: 'Credenciais inválidas.' };
+
+  const token = jwt.sign(
+    { id: cliente.id, nome: cliente.nome, role: 'cliente' },
+    env.JWT_SECRET,
+    { expiresIn: env.JWT_EXPIRES_IN }
   );
-
-  const cliente = result.rows[0];
-  const tokens = gerarTokens(cliente, banhistaId);
 
   return {
-    cliente: {
-      id: cliente.id,
-      nome: cliente.nome,
-      email: cliente.email_auth,
-      cpf: cliente.cpf,
-      telefone: cliente.telefone
-    },
-    ...tokens
+    token,
+    cliente: { id: cliente.id, nome: cliente.nome, cpf: cliente.cpf, email: cliente.email, telefone: cliente.telefone },
   };
-};
+}
 
-const login = async (email, senha) => {
-  const result = await query(
-    `SELECT c.id, c.banhista_id, c.nome, c.email_auth, c.senha_hash, c.telefone, c.cpf, c.ativo
-     FROM clientes c
-     WHERE c.email_auth = $1`,
-    [email.toLowerCase()]
+async function perfil(clienteId) {
+  const { rows } = await pool.query(
+    'SELECT id, nome, cpf, telefone, endereco, email, criado_em FROM clientes WHERE id = $1',
+    [clienteId]
   );
+  if (!rows[0]) throw { status: 404, message: 'Cliente não encontrado.' };
+  return rows[0];
+}
 
-  if (result.rows.length === 0) {
-    throw new AppError('Credenciais invalidas', 401);
-  }
-
-  const cliente = result.rows[0];
-
-  if (!cliente.ativo) {
-    throw new AppError('Conta desativada', 403);
-  }
-
-  if (!cliente.senha_hash) {
-    throw new AppError('Conta nao possui senha cadastrada. Por favor, registre-se.', 401);
-  }
-
-  const senhaValida = await bcrypt.compare(senha, cliente.senha_hash);
-
-  if (!senhaValida) {
-    throw new AppError('Credenciais invalidas', 401);
-  }
-
-  const tokens = gerarTokens(cliente, cliente.banhista_id);
-
-  return {
-    cliente: {
-      id: cliente.id,
-      nome: cliente.nome,
-      email: cliente.email_auth,
-      cpf: cliente.cpf,
-      telefone: cliente.telefone
-    },
-    ...tokens
-  };
-};
-
-const refreshToken = async (token) => {
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (decoded.type !== 'refresh' || decoded.role !== 'cliente') {
-      throw new AppError('Token invalido', 401);
-    }
-
-    const result = await query(
-      'SELECT id, banhista_id, nome, email_auth, ativo FROM clientes WHERE id = $1',
-      [decoded.clienteId]
-    );
-
-    if (result.rows.length === 0 || !result.rows[0].ativo) {
-      throw new AppError('Usuario nao encontrado ou inativo', 401);
-    }
-
-    const cliente = result.rows[0];
-    const tokens = gerarTokens(cliente, cliente.banhista_id);
-
-    return tokens;
-  } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw new AppError('Token invalido ou expirado', 401);
-  }
-};
-
-module.exports = {
-  registrar,
-  login,
-  refreshToken
-};
+module.exports = { registrar, login, perfil };

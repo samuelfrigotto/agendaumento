@@ -1,15 +1,12 @@
-const express = require('express');
-const router = express.Router();
-const { auth } = require('../../middlewares/auth');
-const clientesController = require('./clientes.controller');
-const { clienteValidator } = require('./clientes.validator');
+const router    = require('express').Router();
+const adminAuth = require('../../middlewares/adminAuth');
+const ctrl      = require('./clientes.controller');
 
-router.use(auth);
+router.use(adminAuth);
 
-router.get('/', clientesController.listar);
-router.post('/', clienteValidator, clientesController.criar);
-router.get('/:id', clientesController.buscarPorId);
-router.put('/:id', clienteValidator, clientesController.atualizar);
-router.delete('/:id', clientesController.remover);
+router.get('/',             ctrl.listar);
+router.get('/:id',          ctrl.buscarPorId);
+router.get('/:id/pets',     ctrl.pets);
+router.delete('/:id',       ctrl.desativar);
 
 module.exports = router;

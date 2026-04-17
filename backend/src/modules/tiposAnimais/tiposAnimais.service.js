@@ -1,115 +1,32 @@
-const { query } = require('../../config/database');
-const { AppError } = require('../../middlewares/errorHandler');
+const pool = require('../../config/database');
 
-const listar = async (banhistaId, especie = null) => {
-  let sql = `
-    SELECT id, especie, raca, ativo
-    FROM tipos_animais
-    WHERE banhista_id = $1 AND ativo = true
-  `;
-  const params = [banhistaId];
-
-  if (especie) {
-    sql += ' AND especie = $2';
-    params.push(especie);
-  }
-
-  sql += ' ORDER BY especie ASC, raca ASC';
-
-  const result = await query(sql, params);
-  return result.rows;
-};
-
-const listarEspecies = async (banhistaId) => {
-  const result = await query(
-    `SELECT DISTINCT especie
-     FROM tipos_animais
-     WHERE banhista_id = $1 AND ativo = true
-     ORDER BY especie ASC`,
-    [banhistaId]
+async function listar() {
+  const { rows } = await pool.query(
+    'SELECT id, nome, ativo FROM tipos_animais ORDER BY nome'
   );
-  return result.rows.map(r => r.especie);
-};
+  return rows;
+}
 
-const listarRacasPorEspecie = async (banhistaId, especie) => {
-  const result = await query(
-    `SELECT id, raca
-     FROM tipos_animais
-     WHERE banhista_id = $1 AND especie = $2 AND ativo = true AND raca IS NOT NULL
-     ORDER BY raca ASC`,
-    [banhistaId, especie]
+async function criar(nome) {
+  const { rows } = await pool.query(
+    'INSERT INTO tipos_animais (nome) VALUES ($1) ON CONFLICT (nome) DO NOTHING RETURNING *',
+    [nome.trim()]
   );
-  return result.rows;
-};
+  if (!rows[0]) throw { status: 409, message: 'Tipo de animal já existe.' };
+  return rows[0];
+}
 
-const criar = async (banhistaId, dados) => {
-  // Verificar se ja existe (ativo ou inativo)
-  const existe = await query(
-    `SELECT id, ativo FROM tipos_animais
-     WHERE banhista_id = $1 AND especie = $2 AND (raca = $3 OR (raca IS NULL AND $3 IS NULL))`,
-    [banhistaId, dados.especie, dados.raca || null]
+async function atualizar(id, { nome, ativo }) {
+  const { rows } = await pool.query(
+    'UPDATE tipos_animais SET nome = COALESCE($1, nome), ativo = COALESCE($2, ativo) WHERE id = $3 RETURNING *',
+    [nome || null, ativo !== undefined ? ativo : null, id]
   );
+  if (!rows[0]) throw { status: 404, message: 'Tipo de animal não encontrado.' };
+  return rows[0];
+}
 
-  if (existe.rows.length > 0) {
-    const registro = existe.rows[0];
+async function remover(id) {
+  await pool.query('UPDATE tipos_animais SET ativo = FALSE WHERE id = $1', [id]);
+}
 
-    // Se existe mas esta inativo, reativar
-    if (!registro.ativo) {
-      const reativado = await query(
-        `UPDATE tipos_animais SET ativo = true WHERE id = $1 RETURNING id, especie, raca, ativo`,
-        [registro.id]
-      );
-      return reativado.rows[0];
-    }
-
-    // Se ja existe e esta ativo, erro
-    throw new AppError('Este tipo de animal ja existe', 400);
-  }
-
-  const result = await query(
-    `INSERT INTO tipos_animais (banhista_id, especie, raca)
-     VALUES ($1, $2, $3)
-     RETURNING id, especie, raca, ativo`,
-    [banhistaId, dados.especie, dados.raca || null]
-  );
-
-  return result.rows[0];
-};
-
-const atualizar = async (banhistaId, tipoId, dados) => {
-  const result = await query(
-    `UPDATE tipos_animais
-     SET especie = COALESCE($3, especie),
-         raca = $4,
-         ativo = COALESCE($5, ativo)
-     WHERE id = $1 AND banhista_id = $2
-     RETURNING id, especie, raca, ativo`,
-    [tipoId, banhistaId, dados.especie, dados.raca, dados.ativo]
-  );
-
-  if (result.rows.length === 0) {
-    throw new AppError('Tipo de animal nao encontrado', 404);
-  }
-
-  return result.rows[0];
-};
-
-const remover = async (banhistaId, tipoId) => {
-  const result = await query(
-    'UPDATE tipos_animais SET ativo = false WHERE id = $1 AND banhista_id = $2 RETURNING id',
-    [tipoId, banhistaId]
-  );
-
-  if (result.rows.length === 0) {
-    throw new AppError('Tipo de animal nao encontrado', 404);
-  }
-};
-
-module.exports = {
-  listar,
-  listarEspecies,
-  listarRacasPorEspecie,
-  criar,
-  atualizar,
-  remover
-};
+module.exports = { listar, criar, atualizar, remover };

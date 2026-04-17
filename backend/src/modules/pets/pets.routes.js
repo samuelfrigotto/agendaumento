@@ -1,17 +1,19 @@
-const express = require('express');
-const router = express.Router();
-const { auth } = require('../../middlewares/auth');
-const { upload } = require('../../middlewares/upload');
-const petsController = require('./pets.controller');
-const { petValidator } = require('./pets.validator');
+const router      = require('express').Router();
+const { body }    = require('express-validator');
+const validate    = require('../../middlewares/validate');
+const clienteAuth = require('../../middlewares/clienteAuth');
+const ctrl        = require('./pets.controller');
 
-router.use(auth);
+router.use(clienteAuth);
 
-router.get('/', petsController.listar);
-router.post('/', petValidator, petsController.criar);
-router.get('/:id', petsController.buscarPorId);
-router.put('/:id', petValidator, petsController.atualizar);
-router.delete('/:id', petsController.remover);
-router.post('/:id/foto', upload.single('foto'), petsController.uploadFoto);
+router.get('/',     ctrl.listar);
+router.post('/',
+  body('tipo_animal_id').isInt({ min: 1 }).withMessage('Tipo de animal inválido.'),
+  body('nome').trim().notEmpty().withMessage('Nome do pet obrigatório.'),
+  validate,
+  ctrl.criar
+);
+router.patch('/:id',  ctrl.atualizar);
+router.delete('/:id', ctrl.remover);
 
 module.exports = router;

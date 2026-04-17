@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Planejador de Backend Completo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f3; color: #1a1a18; min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 860px; margin: 0 auto; }
+
+  /* tokens */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f1efe8;
+  --text-primary: #1a1a18;
+  --text-secondary: #5f5e5a;
+  --border: #d3d1c7;
+  --border-hover: #b4b2a9;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  .pl { padding: 1rem 0; font-size: 14px; }
+  .hdr { margin-bottom: 1.5rem; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; background: #eaf3de; color: #3b6d11; margin-bottom: 6px; }
+  .sec { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 10px; }
+  .sec-title { font-size: 11px; font-weight: 500; color: #5f5e5a; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 12px; }
+  .fld { margin-bottom: 11px; }
+  .fld:last-child { margin-bottom: 0; }
+  label { display: block; font-size: 12px; color: #5f5e5a; margin-bottom: 4px; }
+  input[type=text], input[type=number], select, textarea {
+    width: 100%; padding: 6px 10px; border: 0.5px solid #d3d1c7; border-radius: 8px;
+    background: #fff; color: #1a1a18; font-size: 13px; font-family: inherit;
+    outline: none; transition: border-color .15s;
+  }
+  input[type=text]:focus, select:focus, textarea:focus { border-color: #888780; }
+  textarea { resize: vertical; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  @media(max-width:600px){ .row2,.row3{ grid-template-columns:1fr; } }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+  .chip { border: 0.5px solid #b4b2a9; border-radius: 20px; padding: 3px 11px; font-size: 12px; cursor: pointer; background: transparent; color: #1a1a18; transition: all .12s; }
+  .chip:hover { background: #f1efe8; }
+  .chip.on { background: #e6f1fb; border-color: #85b7eb; color: #0c447c; }
+  .chip.suc.on { background: #eaf3de; border-color: #97c459; color: #3b6d11; }
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  .slider-row input[type=range] { flex: 1; accent-color: #1d9e75; }
+  .slider-desc { font-size: 11px; color: #5f5e5a; margin-top: 3px; }
+  .tog-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 9px; }
+  .tog-row:last-child { margin-bottom: 0; }
+  .tog-info .tog-label { font-size: 13px; color: #1a1a18; }
+  .tog-info .tog-sub { font-size: 11px; color: #5f5e5a; margin-top: 1px; }
+  .tog { width: 32px; height: 18px; border-radius: 9px; background: #b4b2a9; border: none; cursor: pointer; position: relative; flex-shrink: 0; transition: background .15s; margin-top: 2px; }
+  .tog.on { background: #1d9e75; }
+  .tog::after { content: ''; position: absolute; width: 12px; height: 12px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: left .15s; }
+  .tog.on::after { left: 17px; }
+  .desc-area { width: 100%; min-height: 200px; font-size: 13px; line-height: 1.7; padding: 10px 12px; border: 0.5px solid #b4b2a9; border-radius: 8px; background: #f1efe8; color: #1a1a18; resize: vertical; font-family: inherit; }
+  .desc-area:focus { outline: none; border-color: #5f5e5a; }
+  .desc-hint { font-size: 11px; color: #5f5e5a; margin-top: 6px; line-height: 1.6; }
+  .desc-hint strong { color: #1a1a18; font-weight: 500; }
+  .sum-box { background: #f1efe8; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #5f5e5a; line-height: 1.8; }
+  .sum-box strong { color: #1a1a18; font-weight: 500; }
+  .sum-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .sum-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #fff; border: 0.5px solid #d3d1c7; color: #5f5e5a; }
+  .sum-tag.hi { background: #e6f1fb; border-color: #85b7eb; color: #0c447c; }
+  .gen-btn { width: 100%; padding: 10px; border-radius: 8px; border: 0.5px solid #b4b2a9; background: transparent; cursor: pointer; font-size: 13px; font-weight: 500; color: #1a1a18; margin-top: 8px; transition: background .15s; }
+  .gen-btn:hover { background: #f1efe8; }
+  .meter { display: flex; gap: 4px; margin-top: 4px; }
+  .meter-dot { width: 28px; height: 6px; border-radius: 3px; cursor: pointer; transition: background .12s; background: #d3d1c7; }
+  .warn-box { background: #faeeda; border: 0.5px solid #ef9f27; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #633806; margin-top: 8px; }
+  .copy-box { background: #f1efe8; border: 0.5px solid #d3d1c7; border-radius: 8px; padding: 12px; font-size: 12px; color: #1a1a18; white-space: pre-wrap; line-height: 1.7; max-height: 400px; overflow-y: auto; margin-top: 8px; font-family: monospace; display: none; }
+  .copy-btn { margin-top: 6px; font-size: 12px; color: #185fa5; border: none; background: transparent; cursor: pointer; text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="pl" id="app"></div>
+</div>
+
+<script>
+const S = {
+  name:'Agenda Pet', desc:'Sistema de agendamento de serviços para clínica veterinária',
+  complexity:1, dbSize:1, effort:2,
+  clientsPerDay:50, peakMultiplier:2, concurrentUsers:10,
+  expectedGrowth:'estável',
+  lang:'Node.js', fw:'Express', db:'PostgreSQL', cache:'Nenhum', hosting:'Railway',
+  apiType:['REST'], apiVersion:true, pagination:true, rateLimit:false,
+  auth:['JWT'], roles:['admin','user'], twoFA:false, ipWhitelist:false,
+  cors:true, helmet:true, inputValidation:true, xss:true,
+  docker:false, cicd:'Nenhum', envs:['dev','prod'],
+  migrations:true, backupFreq:'Nenhum', fileStorage:'Nenhum',
+  logs:'Console', monitoring:'Nenhum', errorTracking:false, alerts:false,
+  queues:false, websockets:false, notifications:[], i18n:false,
+  sla:'99%', multiTenant:false, gdpr:false,
+  projectDesc:`Para esse projeto eu preciso de 2 visões diferentes, um login para usuários, e um login e painel de controle para o admin, mas o do admin sem opção de cadastro, apenas com 3 contas de admin já pré setadas no banco de dados. Como é um projeto mais simples a parte do admin vai ficar oculta no www.admin.aquivaimeusite.com/login, e depois do login o admin deve ter as seguintes funções:\n\n- ver os clientes cadastrados\n- ver os pets cadastrados de cada cliente\n- ver uma agenda com os serviços semanais já solicitados pelos clientes\n- ter a opção de marcar serviços por fora do site\n- ter a opção de configurar horários disponíveis para os clientes solicitarem os serviços\n- ver em uma aba financeira os serviços solicitados, e ter a opção de marcar como concluído ou cancelado\n- ver uma tela para cadastrar os serviços disponíveis e os pets que podem ser atendidos\n- ver uma aba de configurações para configurar SMTP do email e WhatsApp\n\nJá na parte do usuário:\n- página inicial com agendamento, mesmo sem login\n- cadastro do pet\n- login e registro com nome completo, CPF, telefone, endereço e senha\n\nSistema de notificações lembrando o usuário no dia e 2 horas antes do serviço.`,
+  generatedPlan: '',
+};
+
+const langFw={Node:['Express','Fastify','NestJS'],Python:['FastAPI','Django REST','Flask'],Go:['Gin','Fiber','Echo'],Java:['Spring Boot'],PHP:['Laravel']};
+const dbOpts=['PostgreSQL','MySQL','SQLite','MongoDB','DynamoDB'];
+const cacheOpts=['Nenhum','Redis','Memcached','In-memory'];
+const hostOpts=['Railway','Render','Fly.io','AWS EC2','VPS (Hostinger)','Serverless (Vercel)'];
+const cicdOpts=['Nenhum','GitHub Actions','GitLab CI','CircleCI'];
+const backupOpts=['Nenhum','Diário','Semanal','Contínuo (WAL)'];
+const storageOpts=['Nenhum','S3/R2','Cloudinary','Local disk'];
+const logOpts=['Console','Winston/Pino','Datadog Logs','CloudWatch'];
+const monOpts=['Nenhum','Grafana','Datadog','New Relic','UptimeRobot'];
+const notifOpts=['E-mail','SMS','Push','Webhook','WhatsApp'];
+const growthOpts=['estável','crescimento lento','crescimento rápido','viral/imprevisível'];
+const slaOpts=['95%','99%','99,5%','99,9% (4 noves)'];
+const complexityLabels=['Protótipo rápido','Pequeno e estável','Médio com features','Robusto escalável','Enterprise grade'];
+const dbSizeLabels=['< 1k registros','1k–100k','100k–1M','1M–100M','100M+ / sharding'];
+
+function tog(f){S[f]=!S[f];render()}
+function togArr(arr,val){const i=S[arr].indexOf(val);i>=0?S[arr].splice(i,1):S[arr].push(val);render()}
+function pick(f,v){S[f]=v;if(f==='lang')S.fw=langFw[v][0];render()}
+function addRole(){const v=document.getElementById('nr').value.trim();if(v&&!S.roles.includes(v)){S.roles.push(v);document.getElementById('nr').value='';render()}}
+function removeRole(r){S.roles=S.roles.filter(x=>x!==r);render()}
+
+function complexityWarning(){
+  if(S.complexity===1&&S.clientsPerDay>500)return'⚠ Nível 1 pode ser insuficiente para '+S.clientsPerDay+' clientes/dia.';
+  if(S.complexity===1&&S.queues)return'⚠ Filas/workers sugerem complexidade ≥ 3.';
+  if(S.complexity===1&&S.monitoring!=='Nenhum')return'⚠ Monitoramento avançado é mais adequado para nível ≥ 2.';
+  return null;
+}
+
+function dots(field,max,color){
+  return '<div class="meter">'+Array.from({length:max},(_,i)=>'<div class="meter-dot" style="background:'+(i<S[field]?color:'#d3d1c7')+'" onclick="S.'+field+'='+(i+1)+';render()"></div>').join('')+'</div>';
+}
+
+function buildPlan(){
+  const feats=[];
+  if(S.cors)feats.push('CORS');if(S.helmet)feats.push('HTTPS/Helmet');if(S.inputValidation)feats.push('Validação');
+  if(S.migrations)feats.push('Migrations');if(S.docker)feats.push('Docker');if(S.queues)feats.push('Filas/Workers');
+  if(S.websockets)feats.push('WebSockets');if(S.rateLimit)feats.push('Rate Limiting');if(S.twoFA)feats.push('2FA');
+  if(S.errorTracking)feats.push('Sentry');if(S.i18n)feats.push('i18n');if(S.gdpr)feats.push('LGPD');
+
+  return `PLANO TÉCNICO — ${S.name}
+${'='.repeat(60)}
+
+ESCOPO
+  Descrição : ${S.desc}
+  Complexidade : ${S.complexity}/5 (${complexityLabels[S.complexity-1]})
+  SLA esperado : ${S.sla}
+  Esforço estimado : ${S.effort} dia(s)
+
+ESCALA & TRÁFEGO
+  Clientes/dia : ${S.clientsPerDay}
+  Usuários simultâneos : ${S.concurrentUsers}
+  Pico de tráfego : ${S.peakMultiplier}×
+  Tamanho do banco : ${S.dbSize}/5 (${dbSizeLabels[S.dbSize-1]})
+  Crescimento esperado : ${S.expectedGrowth}
+  Multi-tenant : ${S.multiTenant?'sim':'não'}
+  LGPD/GDPR : ${S.gdpr?'necessário':'não agora'}
+
+STACK
+  Linguagem : ${S.lang}
+  Framework : ${S.fw}
+  Banco de dados : ${S.db}
+  Cache : ${S.cache}
+  Hospedagem : ${S.hosting}
+
+API & COMUNICAÇÃO
+  Tipo : ${S.apiType.join(', ')}
+  Versionamento : ${S.apiVersion?'sim (/v1)':'não'}
+  Paginação : ${S.pagination?'sim':'não'}
+  Rate limiting : ${S.rateLimit?'sim':'não'}
+
+AUTENTICAÇÃO & SEGURANÇA
+  Auth : ${S.auth.join(', ')}
+  Roles : ${S.roles.join(', ')}
+  2FA : ${S.twoFA?'sim':'não'}
+  CORS : ${S.cors?'sim':'não'}
+  HTTPS/Helmet : ${S.helmet?'sim':'não'}
+  Validação de entrada : ${S.inputValidation?'sim':'não'}
+  Proteção SQLi/XSS : ${S.xss?'sim':'não'}
+  IP Whitelist : ${S.ipWhitelist?'sim':'não'}
+
+INFRAESTRUTURA & DEPLOY
+  CI/CD : ${S.cicd}
+  Ambientes : ${S.envs.join(', ')}
+  Docker : ${S.docker?'sim':'não'}
+
+DADOS & ARMAZENAMENTO
+  Backup : ${S.backupFreq}
+  Armazenamento de arquivos : ${S.fileStorage}
+  Migrations : ${S.migrations?'sim':'não'}
+
+OBSERVABILIDADE
+  Logs : ${S.logs}
+  Monitoramento : ${S.monitoring}
+  Sentry : ${S.errorTracking?'sim':'não'}
+  Alertas : ${S.alerts?'sim':'não'}
+
+RECURSOS EXTRAS
+  Filas/Workers : ${S.queues?'sim':'não'}
+  WebSockets : ${S.websockets?'sim':'não'}
+  i18n : ${S.i18n?'sim':'não'}
+  Notificações : ${S.notifications.join(', ')||'nenhuma'}
+  Recursos técnicos ativos : ${feats.join(', ')||'básicos'}
+
+${'='.repeat(60)}
+FUNCIONALIDADES & NECESSIDADES DO PROJETO
+
+${S.projectDesc}
+${'='.repeat(60)}`;
+}
+
+function render(){
+  const warn=complexityWarning();
+  document.getElementById('app').innerHTML=`
+<div class="hdr">
+  <span class="badge">planejador de backend completo</span>
+  <div style="font-size:11px;color:#5f5e5a">preencha para gerar o plano técnico detalhado</div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ Escopo do projeto</div>
+  <div class="row2">
+    <div class="fld"><label>Nome do projeto</label><input type="text" id="fn" value="${S.name}" onchange="S.name=this.value" /></div>
+    <div class="fld"><label>Esforço estimado (dias) — <strong>${S.effort}</strong></label>
+      <div class="slider-row"><input type="range" min="1" max="60" step="1" value="${S.effort}" oninput="S.effort=+this.value;render()" /></div>
+    </div>
+  </div>
+  <div class="fld"><label>Descrição breve</label><textarea rows="2" onchange="S.desc=this.value">${S.desc}</textarea></div>
+  <div class="row2">
+    <div class="fld">
+      <label>Complexidade — <strong>${S.complexity}/5</strong> · ${complexityLabels[S.complexity-1]}</label>
+      ${dots('complexity',5,'#1d9e75')}
+    </div>
+    <div class="fld"><label>SLA / uptime esperado</label>
+      <div class="chips">${slaOpts.map(o=>`<button class="chip${S.sla===o?' on':''}" onclick="S.sla='${o}';render()">${o}</button>`).join('')}</div>
+    </div>
+  </div>
+  ${warn?`<div class="warn-box">${warn}</div>`:''}
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ Escala & tráfego</div>
+  <div class="row3">
+    <div class="fld"><label>Clientes / dia — <strong>${S.clientsPerDay}</strong></label>
+      <div class="slider-row"><input type="range" min="1" max="100000" step="50" value="${S.clientsPerDay}" oninput="S.clientsPerDay=+this.value;render()" /></div>
+      <div class="slider-desc">${S.clientsPerDay<=100?'tráfego baixo':S.clientsPerDay<=5000?'tráfego moderado':S.clientsPerDay<=50000?'tráfego alto':'tráfego muito alto'}</div>
+    </div>
+    <div class="fld"><label>Usuários simultâneos — <strong>${S.concurrentUsers}</strong></label>
+      <div class="slider-row"><input type="range" min="1" max="10000" step="10" value="${S.concurrentUsers}" oninput="S.concurrentUsers=+this.value;render()" /></div>
+    </div>
+    <div class="fld"><label>Pico de tráfego — <strong>${S.peakMultiplier}×</strong></label>
+      <div class="slider-row"><input type="range" min="2" max="50" step="1" value="${S.peakMultiplier}" oninput="S.peakMultiplier=+this.value;render()" /></div>
+    </div>
+  </div>
+  <div class="row2">
+    <div class="fld"><label>Tamanho do banco — <strong>${S.dbSize}/5</strong> · ${dbSizeLabels[S.dbSize-1]}</label>
+      ${dots('dbSize',5,'#185fa5')}
+    </div>
+    <div class="fld"><label>Expectativa de crescimento</label>
+      <div class="chips">${growthOpts.map(o=>`<button class="chip${S.expectedGrowth===o?' on':''}" onclick="S.expectedGrowth='${o}';render()">${o}</button>`).join('')}</div>
+    </div>
+  </div>
+  <div class="row2">
+    <div class="fld"><label>Multi-tenant?</label>
+      <div class="chips">
+        <button class="chip suc${S.multiTenant?' on':''}" onclick="S.multiTenant=!S.multiTenant;render()">sim</button>
+        <button class="chip${!S.multiTenant?' on':''}" onclick="S.multiTenant=false;render()">não</button>
+      </div>
+    </div>
+    <div class="fld"><label>Conformidade LGPD / GDPR</label>
+      <div class="chips">
+        <button class="chip suc${S.gdpr?' on':''}" onclick="S.gdpr=!S.gdpr;render()">necessário</button>
+        <button class="chip${!S.gdpr?' on':''}" onclick="S.gdpr=false;render()">não agora</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ Stack tecnológico</div>
+  <div class="row2">
+    <div class="fld"><label>Linguagem</label>
+      <div class="chips">${Object.keys(langFw).map(l=>`<button class="chip${S.lang===l?' on':''}" onclick="pick('lang','${l}')">${l}</button>`).join('')}</div>
+    </div>
+    <div class="fld"><label>Framework</label>
+      <div class="chips">${(langFw[S.lang]||[]).map(f=>`<button class="chip${S.fw===f?' on':''}" onclick="pick('fw','${f}')">${f}</button>`).join('')}</div>
+    </div>
+  </div>
+  <div class="row3">
+    <div class="fld"><label>Banco de dados</label>
+      <div class="chips">${dbOpts.map(d=>`<button class="chip${S.db===d?' on':''}" onclick="pick('db','${d}')">${d}</button>`).join('')}</div>
+    </div>
+    <div class="fld"><label>Cache</label>
+      <div class="chips">${cacheOpts.map(c=>`<button class="chip${S.cache===c?' on':''}" onclick="pick('cache','${c}')">${c}</button>`).join('')}</div>
+    </div>
+    <div class="fld"><label>Hospedagem</label>
+      <div class="chips">${hostOpts.map(h=>`<button class="chip${S.hosting===h?' on':''}" onclick="pick('hosting','${h}')">${h}</button>`).join('')}</div>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ API & comunicação</div>
+  <div class="row2">
+    <div class="fld"><label>Tipo de API</label>
+      <div class="chips">${['REST','GraphQL','gRPC','WebSocket'].map(t=>`<button class="chip${S.apiType.includes(t)?' on':''}" onclick="togArr('apiType','${t}')">${t}</button>`).join('')}</div>
+    </div>
+    <div class="fld"><label>Recursos</label>
+      <div class="chips">
+        <button class="chip suc${S.apiVersion?' on':''}" onclick="tog('apiVersion')">versionamento (/v1)</button>
+        <button class="chip suc${S.pagination?' on':''}" onclick="tog('pagination')">paginação</button>
+        <button class="chip suc${S.rateLimit?' on':''}" onclick="tog('rateLimit')">rate limiting</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ Autenticação & segurança</div>
+  <div class="row2">
+    <div class="fld"><label>Método de autenticação</label>
+      <div class="chips">${['JWT','OAuth2 (Google)','OAuth2 (GitHub)','API Key','Session/Cookie','Sem auth'].map(a=>`<button class="chip${S.auth.includes(a)?' on':''}" onclick="togArr('auth','${a}')">${a}</button>`).join('')}</div>
+    </div>
+    <div class="fld"><label>Roles / permissões</label>
+      <div class="chips">${S.roles.map(r=>`<span class="chip on" style="cursor:default">${r} <span onclick="removeRole('${r}')" style="cursor:pointer;font-size:10px;margin-left:4px">×</span></span>`).join('')}</div>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <input type="text" id="nr" placeholder="nova role" style="font-size:12px;flex:1" />
+        <button onclick="addRole()" style="font-size:12px;border:0.5px solid #b4b2a9;border-radius:8px;padding:4px 10px;background:transparent;cursor:pointer;color:#1a1a18">+ add</button>
+      </div>
+    </div>
+  </div>
+  <div class="row2" style="margin-top:2px">
+    <div>
+      <div class="tog-row"><div class="tog-info"><div class="tog-label">HTTPS obrigatório</div><div class="tog-sub">redirecionar http → https</div></div><button class="tog${S.helmet?' on':''}" onclick="tog('helmet')"></button></div>
+      <div class="tog-row"><div class="tog-info"><div class="tog-label">CORS configurado</div><div class="tog-sub">origins permitidos</div></div><button class="tog${S.cors?' on':''}" onclick="tog('cors')"></button></div>
+      <div class="tog-row"><div class="tog-info"><div class="tog-label">2FA / MFA</div><div class="tog-sub">TOTP ou SMS</div></div><button class="tog${S.twoFA?' on':''}" onclick="tog('twoFA')"></button></div>
+    </div>
+    <div>
+      <div class="tog-row"><div class="tog-info"><div class="tog-label">Validação de entrada</div><div class="tog-sub">Zod, Joi, class-validator</div></div><button class="tog${S.inputValidation?' on':''}" onclick="tog('inputValidation')"></button></div>
+      <div class="tog-row"><div class="tog-info"><div class="tog-label">Proteção SQL Injection / XSS</div><div class="tog-sub">sanitização e queries parametrizadas</div></div><button class="tog${S.xss?' on':''}" onclick="tog('xss')"></button></div>
+      <div class="tog-row"><div class="tog-info"><div class="tog-label">IP Whitelist</div><div class="tog-sub">restrição de acesso por IP</div></div><button class="tog${S.ipWhitelist?' on':''}" onclick="tog('ipWhitelist')"></button></div>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ Infraestrutura & deploy</div>
+  <div class="row2">
+    <div class="fld"><label>CI/CD</label>
+      <div class="chips">${cicdOpts.map(c=>`<button class="chip${S.cicd===c?' on':''}" onclick="pick('cicd','${c}')">${c}</button>`).join('')}</div>
+    </div>
+    <div class="fld"><label>Ambientes</label>
+      <div class="chips">${['dev','staging','prod'].map(e=>`<button class="chip${S.envs.includes(e)?' on':''}" onclick="togArr('envs','${e}')">${e}</button>`).join('')}</div>
+    </div>
+  </div>
+  <div class="tog-row" style="margin-top:4px">
+    <div class="tog-info"><div class="tog-label">Docker / containerização</div><div class="tog-sub">Dockerfile + docker-compose</div></div>
+    <button class="tog${S.docker?' on':''}" onclick="tog('docker')"></button>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ Dados & armazenamento</div>
+  <div class="row3">
+    <div class="fld"><label>Backup do banco</label>
+      <div class="chips">${backupOpts.map(b=>`<button class="chip${S.backupFreq===b?' on':''}" onclick="pick('backupFreq','${b}')">${b}</button>`).join('')}</div>
+    </div>
+    <div class="fld"><label>Armazenamento de arquivos</label>
+      <div class="chips">${storageOpts.map(s=>`<button class="chip${S.fileStorage===s?' on':''}" onclick="pick('fileStorage','${s}')">${s}</button>`).join('')}</div>
+    </div>
+    <div class="fld"><label>Recursos</label>
+      <div class="chips">
+        <button class="chip suc${S.migrations?' on':''}" onclick="tog('migrations')">migrations</button>
+        <button class="chip suc${S.gdpr?' on':''}" onclick="S.gdpr=!S.gdpr;render()">anonimização</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ Observabilidade</div>
+  <div class="row3">
+    <div class="fld"><label>Logs</label>
+      <div class="chips">${logOpts.map(l=>`<button class="chip${S.logs===l?' on':''}" onclick="pick('logs','${l}')">${l}</button>`).join('')}</div>
+    </div>
+    <div class="fld"><label>Monitoramento</label>
+      <div class="chips">${monOpts.map(m=>`<button class="chip${S.monitoring===m?' on':''}" onclick="pick('monitoring','${m}')">${m}</button>`).join('')}</div>
+    </div>
+    <div class="fld"><label>Extras</label>
+      <div class="chips">
+        <button class="chip suc${S.errorTracking?' on':''}" onclick="tog('errorTracking')">Sentry (erros)</button>
+        <button class="chip suc${S.alerts?' on':''}" onclick="tog('alerts')">alertas automáticos</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ Recursos extras</div>
+  <div class="row2">
+    <div>
+      <div class="tog-row"><div class="tog-info"><div class="tog-label">Filas / workers assíncronos</div><div class="tog-sub">Bull, BullMQ, RabbitMQ</div></div><button class="tog${S.queues?' on':''}" onclick="tog('queues')"></button></div>
+      <div class="tog-row"><div class="tog-info"><div class="tog-label">WebSockets / tempo real</div><div class="tog-sub">Socket.io, SSE</div></div><button class="tog${S.websockets?' on':''}" onclick="tog('websockets')"></button></div>
+      <div class="tog-row"><div class="tog-info"><div class="tog-label">Internacionalização (i18n)</div><div class="tog-sub">múltiplos idiomas</div></div><button class="tog${S.i18n?' on':''}" onclick="tog('i18n')"></button></div>
+    </div>
+    <div class="fld"><label>Notificações</label>
+      <div class="chips">${notifOpts.map(n=>`<button class="chip${S.notifications.includes(n)?' on':''}" onclick="togArr('notifications','${n}')">${n}</button>`).join('')}</div>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ Funcionalidades & necessidades do projeto</div>
+  <div class="fld">
+    <label>Descreva livremente as funcionalidades, visões, regras de negócio, fluxos de usuário e qualquer detalhe relevante</label>
+    <textarea class="desc-area" id="pd" placeholder="Ex: preciso de 2 visões — uma para o usuário final e outra para o admin...">${S.projectDesc}</textarea>
+    <div class="desc-hint">
+      Quanto mais detalhe, melhor o plano gerado. Você pode mencionar:<br/>
+      <strong>visões e acessos</strong> (admin, usuário, público) · <strong>funcionalidades por tela</strong> · <strong>regras de negócio</strong> · <strong>fluxos de cadastro e login</strong> · <strong>campos obrigatórios</strong> · <strong>integrações externas</strong> · <strong>comportamentos especiais</strong>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">◈ Resumo</div>
+  <div class="sum-box">
+    <strong>${S.name}</strong> — ${S.desc}<br/>
+    <div class="sum-row">
+      <span class="sum-tag hi">nível ${S.complexity}/5</span>
+      <span class="sum-tag">${S.lang} + ${S.fw}</span>
+      <span class="sum-tag">${S.db}${S.cache!=='Nenhum'?' + '+S.cache:''}</span>
+      <span class="sum-tag">${S.hosting}</span>
+      <span class="sum-tag">${S.clientsPerDay} clientes/dia</span>
+      <span class="sum-tag">banco nível ${S.dbSize}/5</span>
+      <span class="sum-tag">${S.sla} uptime</span>
+      ${S.docker?'<span class="sum-tag">Docker</span>':''}
+      ${S.queues?'<span class="sum-tag">filas</span>':''}
+      ${S.websockets?'<span class="sum-tag">WebSocket</span>':''}
+      ${S.cicd!=='Nenhum'?`<span class="sum-tag">${S.cicd}</span>`:''}
+      ${S.backupFreq!=='Nenhum'?`<span class="sum-tag">backup ${S.backupFreq}</span>`:''}
+      ${S.notifications.length?`<span class="sum-tag">notif: ${S.notifications.join(', ')}</span>`:''}
+    </div>
+    <div style="margin-top:6px;font-size:12px;color:#5f5e5a">esforço estimado: <strong>${S.effort}</strong> dia(s)</div>
+  </div>
+  <button class="gen-btn" onclick="exportPlan()">exportar plano como texto ↓</button>
+  <pre class="copy-box" id="plan-output"></pre>
+  <button class="copy-btn" id="copy-btn" style="display:none" onclick="copyPlan()">copiar tudo</button>
+</div>
+`;
+
+  document.getElementById('fn').addEventListener('input',e=>{S.name=e.target.value});
+  document.getElementById('fn').addEventListener('change',()=>render());
+  document.getElementById('pd').addEventListener('input',e=>{S.projectDesc=e.target.value});
+}
+
+function exportPlan(){
+  S.projectDesc = document.getElementById('pd').value || S.projectDesc;
+  const plan = buildPlan();
+  const box = document.getElementById('plan-output');
+  const btn = document.getElementById('copy-btn');
+  box.textContent = plan;
+  box.style.display = 'block';
+  btn.style.display = 'inline';
+  box.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function copyPlan(){
+  const text = document.getElementById('plan-output').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    document.getElementById('copy-btn').textContent = 'copiado!';
+    setTimeout(()=>{ document.getElementById('copy-btn').textContent = 'copiar tudo'; }, 2000);
+  });
+}
+
+render();
+</script>
+</body>
+</html>

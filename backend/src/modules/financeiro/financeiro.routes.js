@@ -1,12 +1,10 @@
-const express = require('express');
-const router = express.Router();
-const { auth } = require('../../middlewares/auth');
-const financeiroController = require('./financeiro.controller');
+const router    = require('express').Router();
+const adminAuth = require('../../middlewares/adminAuth');
+const ctrl      = require('./financeiro.controller');
 
-router.use(auth);
+router.use(adminAuth);
 
-router.get('/resumo', financeiroController.getResumo);
-router.get('/historico', financeiroController.getHistorico);
-router.get('/pendentes', financeiroController.getPendentes);
+router.get('/resumo',   ctrl.resumo);
+router.get('/servicos', ctrl.listarServicos);
 
 module.exports = router;

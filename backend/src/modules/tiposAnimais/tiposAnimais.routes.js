@@ -1,28 +1,15 @@
-const express = require('express');
-const router = express.Router();
-const tiposAnimaisController = require('./tiposAnimais.controller');
-const { criarValidator, atualizarValidator } = require('./tiposAnimais.validator');
-const { auth } = require('../../middlewares/auth');
+const router    = require('express').Router();
+const { body }  = require('express-validator');
+const validate  = require('../../middlewares/validate');
+const adminAuth = require('../../middlewares/adminAuth');
+const ctrl      = require('./tiposAnimais.controller');
 
-// Todas as rotas requerem autenticacao
-router.use(auth);
+// Leitura pública (usada no formulário de agendamento)
+router.get('/', ctrl.listar);
 
-// Listar todos os tipos de animais
-router.get('/', tiposAnimaisController.listar);
-
-// Listar apenas especies (sem racas)
-router.get('/especies', tiposAnimaisController.listarEspecies);
-
-// Listar racas de uma especie
-router.get('/racas/:especie', tiposAnimaisController.listarRacas);
-
-// Criar novo tipo
-router.post('/', criarValidator, tiposAnimaisController.criar);
-
-// Atualizar tipo
-router.put('/:id', atualizarValidator, tiposAnimaisController.atualizar);
-
-// Remover tipo (soft delete)
-router.delete('/:id', tiposAnimaisController.remover);
+// Escrita: somente admin
+router.post('/',     adminAuth, body('nome').trim().notEmpty(), validate, ctrl.criar);
+router.patch('/:id', adminAuth, ctrl.atualizar);
+router.delete('/:id',adminAuth, ctrl.remover);
 
 module.exports = router;

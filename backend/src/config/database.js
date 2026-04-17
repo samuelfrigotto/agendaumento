@@ -1,44 +1,19 @@
 const { Pool } = require('pg');
+const env = require('./env');
 
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || 'agendaumento',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || '',
-  max: 20,
+  host:     env.DB_HOST,
+  port:     env.DB_PORT,
+  user:     env.DB_USER,
+  password: env.DB_PASSWORD,
+  database: env.DB_NAME,
+  max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000,
 });
 
 pool.on('error', (err) => {
-  console.error('Erro inesperado no pool do PostgreSQL:', err);
-  process.exit(-1);
+  console.error('[DB] Erro inesperado no pool:', err.message);
 });
 
-pool.on('connect', () => {
-  console.log('Conectado ao PostgreSQL');
-});
-
-const query = async (text, params) => {
-  const start = Date.now();
-  const res = await pool.query(text, params);
-  const duration = Date.now() - start;
-
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Query executada:', { text, duration: `${duration}ms`, rows: res.rowCount });
-  }
-
-  return res;
-};
-
-const getClient = async () => {
-  const client = await pool.connect();
-  return client;
-};
-
-module.exports = {
-  pool,
-  query,
-  getClient
-};
+module.exports = pool;
