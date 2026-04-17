@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { Search, Scissors, Heart, Stethoscope, Clock, Phone } from "lucide-react";
+import {
+  Search, Clock,
+  Scissors, Heart, Stethoscope, PawPrint, Sparkles, Star,
+  Droplets, Wind, Shield, Smile, Leaf, Zap,
+} from "lucide-react";
 import { useApp } from "../context/AppContext";
 
 const iconMap: Record<string, React.ElementType> = {
-  scissors: Scissors,
-  heart: Heart,
-  stethoscope: Stethoscope,
+  scissors: Scissors, heart: Heart, stethoscope: Stethoscope,
+  pawprint: PawPrint, sparkles: Sparkles, star: Star,
+  droplets: Droplets, wind: Wind, shield: Shield,
+  smile: Smile, leaf: Leaf, zap: Zap,
 };
 
 const categoryLabels: Record<string, string> = {
@@ -18,7 +23,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 export function Services() {
-  const { services } = useApp();
+  const { services, clinicInfo } = useApp();
   const active = services.filter((s) => s.active);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Todos");

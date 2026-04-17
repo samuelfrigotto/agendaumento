@@ -18,6 +18,8 @@ export interface Appointment {
   pet: Pet;
   serviceId: string;
   serviceName: string;
+  servicePrice: number;
+  valorCobrado: number | null;
   date: string;
   time: string;
   status: AppointmentStatus;

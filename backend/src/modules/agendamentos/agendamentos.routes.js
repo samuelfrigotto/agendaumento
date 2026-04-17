@@ -5,6 +5,9 @@ const adminAuth   = require('../../middlewares/adminAuth');
 const clienteAuth = require('../../middlewares/clienteAuth');
 const ctrl        = require('./agendamentos.controller');
 
+// ── Público ────────────────────────────────────────────
+router.get('/buscar', ctrl.buscarPublico);
+
 // ── Admin ──────────────────────────────────────────────
 router.get('/admin',          adminAuth, ctrl.listar);
 router.get('/admin/agenda',   adminAuth, ctrl.agenda);

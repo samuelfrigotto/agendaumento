@@ -12,6 +12,21 @@ import {
   type BackendPet, type TipoAnimal,
 } from "@/services/api";
 
+function formatCPF(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+}
+function formatPhone(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : "";
+  if (d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+}
+
 type Step = 1 | 2 | 3 | 4;
 type AuthTab = "login" | "register";
 
@@ -394,7 +409,7 @@ export function BookAppointment() {
                     <label className="block text-xs text-gray-600 font-semibold mb-1">CPF</label>
                     <input
                       value={cpf}
-                      onChange={(e) => setCpf(e.target.value)}
+                      onChange={(e) => setCpf(formatCPF(e.target.value))}
                       placeholder="000.000.000-00"
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
                     />
@@ -438,7 +453,7 @@ export function BookAppointment() {
                     </div>
                     <div>
                       <label className="block text-xs text-gray-600 font-semibold mb-1">Telefone *</label>
-                      <input value={telefone} onChange={(e) => setTelefone(e.target.value)}
+                      <input value={telefone} onChange={(e) => setTelefone(formatPhone(e.target.value))}
                         placeholder="(11) 99999-9999"
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
                       />

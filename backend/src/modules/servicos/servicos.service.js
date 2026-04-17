@@ -1,9 +1,8 @@
 const pool = require('../../config/database');
 
-// Busca um serviço completo (com tipos_animais) por id — usado após criar/atualizar
 async function _buscarCompleto(id) {
   const { rows } = await pool.query(
-    `SELECT s.id, s.nome, s.descricao, s.preco, s.duracao_minutos, s.ativo,
+    `SELECT s.id, s.nome, s.descricao, s.preco, s.duracao_minutos, s.ativo, s.icon,
             COALESCE(
               json_agg(json_build_object('id', ta.id, 'nome', ta.nome))
                 FILTER (WHERE ta.id IS NOT NULL), '[]'
@@ -21,7 +20,7 @@ async function _buscarCompleto(id) {
 
 async function listar({ apenasAtivos = true } = {}) {
   const { rows } = await pool.query(
-    `SELECT s.id, s.nome, s.descricao, s.preco, s.duracao_minutos, s.ativo,
+    `SELECT s.id, s.nome, s.descricao, s.preco, s.duracao_minutos, s.ativo, s.icon,
             COALESCE(
               json_agg(json_build_object('id', ta.id, 'nome', ta.nome))
                 FILTER (WHERE ta.id IS NOT NULL), '[]'
@@ -36,17 +35,16 @@ async function listar({ apenasAtivos = true } = {}) {
   return rows;
 }
 
-async function criar({ nome, descricao, preco, duracao_minutos, tipos_animais }) {
+async function criar({ nome, descricao, preco, duracao_minutos, icon, tipos_animais }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO servicos (nome, descricao, preco, duracao_minutos)
-       VALUES ($1,$2,$3,$4) RETURNING id`,
-      [nome, descricao || null, preco, duracao_minutos || 60]
+      `INSERT INTO servicos (nome, descricao, preco, duracao_minutos, icon)
+       VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+      [nome, descricao || null, preco, duracao_minutos || 60, icon || 'scissors']
     );
     const id = rows[0].id;
-
     if (tipos_animais?.length) {
       for (const taId of tipos_animais) {
         await client.query(
@@ -65,7 +63,7 @@ async function criar({ nome, descricao, preco, duracao_minutos, tipos_animais })
   }
 }
 
-async function atualizar(id, { nome, descricao, preco, duracao_minutos, ativo, tipos_animais }) {
+async function atualizar(id, { nome, descricao, preco, duracao_minutos, ativo, icon, tipos_animais }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -75,12 +73,12 @@ async function atualizar(id, { nome, descricao, preco, duracao_minutos, ativo, t
            descricao       = COALESCE($2, descricao),
            preco           = COALESCE($3, preco),
            duracao_minutos = COALESCE($4, duracao_minutos),
-           ativo           = COALESCE($5, ativo)
-       WHERE id = $6 RETURNING id`,
-      [nome||null, descricao||null, preco||null, duracao_minutos||null, ativo!==undefined?ativo:null, id]
+           ativo           = COALESCE($5, ativo),
+           icon            = COALESCE($6, icon)
+       WHERE id = $7 RETURNING id`,
+      [nome||null, descricao||null, preco||null, duracao_minutos||null, ativo!==undefined?ativo:null, icon||null, id]
     );
     if (!rows[0]) throw { status: 404, message: 'Serviço não encontrado.' };
-
     if (tipos_animais !== undefined) {
       await client.query('DELETE FROM servicos_tipos_animais WHERE servico_id = $1', [id]);
       for (const taId of tipos_animais) {

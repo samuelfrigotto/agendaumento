@@ -35,6 +35,8 @@ export function AdminAppointments() {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [concludingAppt, setConcludingAppt] = useState<Appointment | null>(null);
+  const [valorModal, setValorModal] = useState("");
 
   const load = useCallback(async () => {
     if (!adminToken) return;
@@ -50,19 +52,27 @@ export function AdminAppointments() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleStatus = async (id: string, status: AppointmentStatus) => {
+  const handleStatus = async (id: string, status: AppointmentStatus, valorCobrado?: number) => {
     if (!adminToken) return;
     setUpdatingId(id);
     try {
-      await atualizarStatusAgendamento(id, statusToBackend[status], adminToken);
+      await atualizarStatusAgendamento(id, statusToBackend[status], adminToken, valorCobrado);
       setAppointments((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status } : a))
+        prev.map((a) => (a.id === id ? { ...a, status, ...(valorCobrado !== undefined ? { valorCobrado } : {}) } : a))
       );
-    } catch {
-      // ignore
-    } finally {
-      setUpdatingId(null);
-    }
+    } catch {} finally { setUpdatingId(null); }
+  };
+
+  const openConcluir = (appt: Appointment) => {
+    setConcludingAppt(appt);
+    setValorModal(appt.servicePrice.toFixed(2));
+  };
+
+  const confirmConcluir = async () => {
+    if (!concludingAppt) return;
+    const val = parseFloat(valorModal.replace(",", "."));
+    await handleStatus(concludingAppt.id, "completed", isNaN(val) ? concludingAppt.servicePrice : val);
+    setConcludingAppt(null);
   };
 
   const filtered = appointments.filter((a) => {
@@ -244,7 +254,7 @@ export function AdminAppointments() {
                           {appt.status === "confirmed" && (
                             <>
                               <button
-                                onClick={() => handleStatus(appt.id, "completed")}
+                                onClick={() => openConcluir(appt)}
                                 className="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
                                 title="Concluir"
                               >
@@ -297,17 +307,21 @@ export function AdminAppointments() {
                           </div>
                         </div>
 
+                        {appt.valorCobrado !== null && appt.valorCobrado !== appt.servicePrice && (
+                          <p className="text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg mt-3">
+                            Valor cobrado: <strong>R$ {appt.valorCobrado.toFixed(2).replace(".", ",")}</strong>
+                            <span className="text-gray-400 ml-1">(padrão: R$ {appt.servicePrice.toFixed(2).replace(".", ",")})</span>
+                          </p>
+                        )}
                         <div className="mt-3 flex items-center gap-2 flex-wrap">
                           <span className="text-xs text-gray-400 font-semibold">Alterar Status:</span>
                           {(["pending", "confirmed", "completed", "cancelled"] as AppointmentStatus[]).map((s) => (
                             <button
                               key={s}
                               disabled={appt.status === s || updatingId === appt.id}
-                              onClick={() => handleStatus(appt.id, s)}
+                              onClick={() => s === "completed" ? openConcluir(appt) : handleStatus(appt.id, s)}
                               className={`text-xs px-3 py-1 rounded-full border transition-all ${
-                                appt.status === s
-                                  ? statusColors[s]
-                                  : "border-gray-200 text-gray-500 hover:bg-gray-100"
+                                appt.status === s ? statusColors[s] : "border-gray-200 text-gray-500 hover:bg-gray-100"
                               }`}
                               style={{ fontWeight: appt.status === s ? 600 : 400 }}
                             >
@@ -325,11 +339,41 @@ export function AdminAppointments() {
         </div>
 
         <div className="px-4 py-3 border-t border-gray-100">
-          <p className="text-xs text-gray-400">
-            Exibindo {sorted.length} de {appointments.length} agendamentos
-          </p>
+          <p className="text-xs text-gray-400">Exibindo {sorted.length} de {appointments.length} agendamentos</p>
         </div>
       </div>
+
+      {/* Modal: valor cobrado */}
+      {concludingAppt && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <h3 className="font-bold text-gray-900 mb-1">Concluir Agendamento</h3>
+            <p className="text-gray-500 text-sm mb-4">
+              Serviço: <strong>{concludingAppt.serviceName}</strong><br />
+              Cliente: {concludingAppt.ownerName}
+            </p>
+            <label className="block text-xs text-gray-600 font-semibold mb-1">Valor cobrado (R$)</label>
+            <input
+              type="number" min={0} step={0.01}
+              value={valorModal}
+              onChange={(e) => setValorModal(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400 mb-1"
+              autoFocus
+            />
+            <p className="text-xs text-gray-400 mb-4">Valor padrão do serviço: R$ {concludingAppt.servicePrice.toFixed(2).replace(".", ",")}</p>
+            <div className="flex gap-3">
+              <button onClick={confirmConcluir} disabled={updatingId === concludingAppt.id}
+                className="flex-1 bg-teal-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-teal-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                {updatingId === concludingAppt.id && <Loader2 size={14} className="animate-spin" />}
+                Confirmar
+              </button>
+              <button onClick={() => setConcludingAppt(null)} className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

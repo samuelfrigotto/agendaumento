@@ -142,4 +142,16 @@ async function listarDoCliente(clienteId) {
   return rows;
 }
 
-module.exports = { listar, agenda, buscarPorId, criarPeloCliente, criarPeloAdmin, atualizarStatus, cancelarPeloCliente, listarDoCliente };
+async function buscarPorCpfOuTelefone(busca) {
+  const digits = busca.replace(/\D/g, '');
+  if (!digits) return [];
+  const { rows } = await pool.query(
+    `${SELECT_BASE}
+     WHERE c.cpf = $1 OR regexp_replace(COALESCE(c.telefone,''), '[^0-9]', '', 'g') = $1
+     ORDER BY a.data_hora DESC LIMIT 50`,
+    [digits]
+  );
+  return rows;
+}
+
+module.exports = { listar, agenda, buscarPorId, criarPeloCliente, criarPeloAdmin, atualizarStatus, cancelarPeloCliente, listarDoCliente, buscarPorCpfOuTelefone };

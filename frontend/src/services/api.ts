@@ -65,6 +65,7 @@ export interface BackendService {
   preco: string;
   duracao_minutos: number;
   ativo: boolean;
+  icon: string | null;
   tipos_animais: { id: number; nome: string }[];
 }
 
@@ -121,7 +122,7 @@ export function mapService(raw: BackendService): Service {
     duration: raw.duracao_minutos,
     price: parseFloat(raw.preco),
     category: "",
-    icon: "scissors",
+    icon: raw.icon ?? "scissors",
     active: raw.ativo,
   };
 }
@@ -152,6 +153,8 @@ export function mapAppointment(raw: BackendAppointment): Appointment {
     },
     serviceId: String(raw.servico_id),
     serviceName: raw.servico_nome,
+    servicePrice: parseFloat(raw.servico_preco),
+    valorCobrado: raw.valor_cobrado ? parseFloat(raw.valor_cobrado) : null,
     date,
     time,
     status: statusToFrontend[raw.status] ?? "pending",
@@ -206,7 +209,7 @@ export async function fetchServicos(token?: string | null): Promise<BackendServi
 }
 
 export async function criarServico(
-  body: { nome: string; descricao?: string; preco: number; duracao_minutos: number },
+  body: { nome: string; descricao?: string; preco: number; duracao_minutos: number; icon?: string },
   token: string
 ): Promise<BackendService> {
   return apiFetch<BackendService>("/servicos", { method: "POST", body, token });
@@ -220,6 +223,7 @@ export async function atualizarServico(
     preco: number;
     duracao_minutos: number;
     ativo: boolean;
+    icon: string;
   }>,
   token: string
 ): Promise<BackendService> {
@@ -250,13 +254,19 @@ export async function fetchAgendamentosAdmin(
 export async function atualizarStatusAgendamento(
   id: string,
   status: string,
-  token: string
+  token: string,
+  valorCobrado?: number
 ): Promise<BackendAppointment> {
   return apiFetch<BackendAppointment>(`/agendamentos/admin/${id}/status`, {
     method: "PATCH",
-    body: { status },
+    body: { status, ...(valorCobrado !== undefined ? { valor_cobrado: valorCobrado } : {}) },
     token,
   });
+}
+
+export async function buscarAgendamentosPublico(busca: string): Promise<BackendAppointment[]> {
+  const digits = busca.replace(/\D/g, "");
+  return apiFetch<BackendAppointment[]>(`/agendamentos/buscar?busca=${digits}`);
 }
 
 // ── Appointments (client) ─────────────────────────────────────────────────────

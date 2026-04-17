@@ -66,4 +66,13 @@ async function meus(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listar, agenda, buscarPorId, criarAdmin, atualizarStatus, criarCliente, cancelarCliente, meus };
+async function buscarPublico(req, res, next) {
+  try {
+    const { busca } = req.query;
+    if (!busca) return res.status(400).json({ erro: 'Informe CPF ou telefone.' });
+    const data = await service.buscarPorCpfOuTelefone(busca);
+    res.json(data);
+  } catch (err) { next(err); }
+}
+
+module.exports = { listar, agenda, buscarPorId, criarAdmin, atualizarStatus, criarCliente, cancelarCliente, meus, buscarPublico };
