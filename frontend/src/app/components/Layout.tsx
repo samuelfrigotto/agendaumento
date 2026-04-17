@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router";
 import { PawPrint, Phone, Mail, MapPin, Clock, Menu, X } from "lucide-react";
+import { useApp } from "@/app/context/AppContext";
 
 const navLinks = [
   { to: "/", label: "Início" },
@@ -9,9 +10,21 @@ const navLinks = [
   { to: "/meus-agendamentos", label: "Meus Agendamentos" },
 ];
 
+function fmtH(t: string) {
+  const [h, m] = t.split(":");
+  return m === "00" ? `${h}h` : `${h}h${m}`;
+}
+
 export function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const { clinicInfo, services } = useApp();
+
+  const horaSegSex = `${fmtH(clinicInfo.horarioSegSexInicio)}–${fmtH(clinicInfo.horarioSegSexFim)}`;
+  const horaSab    = `${fmtH(clinicInfo.horarioSabInicio)}–${fmtH(clinicInfo.horarioSabFim)}`;
+  const horaTexto  = `Seg–Sex: ${horaSegSex} | Sáb: ${horaSab}`;
+
+  const footerServicos = services.filter((s) => s.active).slice(0, 4).map((s) => s.name);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -20,18 +33,18 @@ export function Layout() {
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
-              <Phone size={11} /> (11) 3333-4444
+              <Phone size={11} /> {clinicInfo.telefone}
             </span>
             <span className="flex items-center gap-1">
-              <Mail size={11} /> contato@agendaumento.com.br
+              <Mail size={11} /> {clinicInfo.email}
             </span>
             <span className="hidden sm:flex items-center gap-1">
-              <MapPin size={11} /> Rua das Flores, 123 — São Paulo, SP
+              <MapPin size={11} /> {clinicInfo.endereco}
             </span>
           </div>
           <div className="flex items-center gap-1">
             <Clock size={11} />
-            <span>Seg–Sex: 08h–18h &nbsp;|&nbsp; Sáb: 09h–16h</span>
+            <span>{horaTexto}</span>
             <span className="mx-2 text-teal-400">|</span>
             <Link to="/admin" className="text-teal-200 hover:text-white transition-colors font-medium">
               Área Admin
@@ -49,7 +62,7 @@ export function Layout() {
             </div>
             <div>
               <p className="text-gray-900 leading-none" style={{ fontWeight: 700, fontSize: "1.05rem" }}>
-                Agendaumento
+                {clinicInfo.nome}
               </p>
               <p className="text-teal-600 leading-none" style={{ fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.08em" }}>
                 CUIDANDO DO SEU PET
@@ -128,7 +141,7 @@ export function Layout() {
               <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
                 <PawPrint size={16} className="text-white" />
               </div>
-              <span className="text-white font-bold">Agendaumento</span>
+              <span className="text-white font-bold">{clinicInfo.nome}</span>
             </div>
             <p className="text-sm leading-relaxed">
               Cuidado especializado em banho e tosa para o seu pet com amor e profissionalismo.
@@ -149,26 +162,28 @@ export function Layout() {
           <div>
             <h4 className="text-white font-semibold mb-3 text-sm">Serviços</h4>
             <ul className="space-y-2 text-sm">
-              {["Banho Completo", "Tosa na Tesoura", "Tosa na Navalha", "Hidratação de Pelagem"].map((s) => (
-                <li key={s}>{s}</li>
-              ))}
+              {footerServicos.length > 0
+                ? footerServicos.map((nome) => <li key={nome}>{nome}</li>)
+                : ["Banho Completo", "Tosa na Tesoura", "Tosa na Navalha", "Hidratação"].map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
             </ul>
           </div>
 
           <div>
             <h4 className="text-white font-semibold mb-3 text-sm">Contato</h4>
             <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2"><Phone size={13} /> (11) 3333-4444</li>
-              <li className="flex items-center gap-2"><Mail size={13} /> contato@agendaumento.com.br</li>
+              <li className="flex items-center gap-2"><Phone size={13} /> {clinicInfo.telefone}</li>
+              <li className="flex items-center gap-2"><Mail size={13} /> {clinicInfo.email}</li>
               <li className="flex items-start gap-2">
                 <MapPin size={13} className="mt-0.5 shrink-0" />
-                Rua das Flores, 123<br />São Paulo, SP
+                {clinicInfo.endereco}
               </li>
             </ul>
           </div>
         </div>
         <div className="border-t border-gray-800 py-4 text-center text-xs text-gray-600">
-          © {new Date().getFullYear()} Agendaumento. Todos os direitos reservados.
+          © {new Date().getFullYear()} {clinicInfo.nome}. Todos os direitos reservados.
         </div>
       </footer>
     </div>

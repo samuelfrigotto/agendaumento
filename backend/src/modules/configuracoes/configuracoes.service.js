@@ -3,7 +3,26 @@ const pool = require('../../config/database');
 const CHAVES_PERMITIDAS = [
   'smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_ativo',
   'whatsapp_api_url','whatsapp_api_key','whatsapp_instance','whatsapp_ativo',
+  'clinic_nome','clinic_telefone','clinic_email','clinic_endereco',
+  'clinic_horario_seg_sex_inicio','clinic_horario_seg_sex_fim',
+  'clinic_horario_sab_inicio','clinic_horario_sab_fim','clinic_domingo_aberto',
 ];
+
+const CHAVES_PUBLICAS = [
+  'clinic_nome','clinic_telefone','clinic_email','clinic_endereco',
+  'clinic_horario_seg_sex_inicio','clinic_horario_seg_sex_fim',
+  'clinic_horario_sab_inicio','clinic_horario_sab_fim','clinic_domingo_aberto',
+];
+
+async function listarPublico() {
+  const { rows } = await pool.query(
+    'SELECT chave, valor FROM configuracoes WHERE chave = ANY($1)',
+    [CHAVES_PUBLICAS]
+  );
+  const map = {};
+  rows.forEach(r => { map[r.chave] = r.valor; });
+  return map;
+}
 
 async function listar() {
   const { rows } = await pool.query(
@@ -44,4 +63,4 @@ async function get(chave) {
   return rows[0]?.valor ?? null;
 }
 
-module.exports = { listar, salvar, get };
+module.exports = { listar, listarPublico, salvar, get };

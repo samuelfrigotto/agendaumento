@@ -5,9 +5,16 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
+function fmtH(t: string) {
+  const [h, m] = t.split(":");
+  return m === "00" ? `${h}h` : `${h}h${m}`;
+}
+
 export function Home() {
-  const { services } = useApp();
+  const { services, clinicInfo } = useApp();
   const featured = services.filter((s) => s.active).slice(0, 3);
+  const horaSegSex = `Seg–Sex: ${fmtH(clinicInfo.horarioSegSexInicio)}–${fmtH(clinicInfo.horarioSegSexFim)}`;
+  const horaSab    = `Sáb: ${fmtH(clinicInfo.horarioSabInicio)}–${fmtH(clinicInfo.horarioSabFim)}`;
 
   return (
     <div>
@@ -57,8 +64,8 @@ export function Home() {
       <section className="bg-white shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
           {[
-            { icon: Phone, label: "(11) 3333-4444", sub: "Ligue ou WhatsApp" },
-            { icon: Clock, label: "Seg–Sex: 08h–18h", sub: "Sáb: 09h–16h" },
+            { icon: Phone, label: clinicInfo.telefone, sub: "Ligue ou WhatsApp" },
+            { icon: Clock, label: horaSegSex, sub: horaSab },
             { icon: CalendarCheck, label: "Agendamento Online", sub: "Rápido e fácil" },
           ].map(({ icon: Icon, label, sub }) => (
             <div key={label} className="flex items-center justify-center gap-3 py-2">
@@ -215,10 +222,10 @@ export function Home() {
               Agendar Online
             </Link>
             <a
-              href="tel:+551133334444"
+              href={`tel:+55${clinicInfo.telefone.replace(/\D/g, "")}`}
               className="px-8 py-3.5 border-2 border-white/40 text-white font-semibold rounded-2xl hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
             >
-              <Phone size={16} /> (11) 3333-4444
+              <Phone size={16} /> {clinicInfo.telefone}
             </a>
           </div>
         </div>

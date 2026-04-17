@@ -309,6 +309,14 @@ export async function fetchTiposAnimais(): Promise<TipoAnimal[]> {
 
 // ── Disponibilidade ───────────────────────────────────────────────────────────
 
+export interface DisponibilidadeRegra {
+  id?: number;
+  dia_semana: number;
+  hora_inicio: string;
+  hora_fim: string;
+  ativo: boolean;
+}
+
 export async function fetchSlots(data: string, duracao: number): Promise<string[]> {
   const res = await apiFetch<{ data: string; slots: string[] }>(
     `/disponibilidade/slots?data=${data}&duracao=${duracao}`
@@ -316,7 +324,26 @@ export async function fetchSlots(data: string, duracao: number): Promise<string[
   return res.slots ?? [];
 }
 
+export async function fetchDisponibilidadeRegras(token: string): Promise<DisponibilidadeRegra[]> {
+  return apiFetch<DisponibilidadeRegra[]>("/disponibilidade/regras", { token });
+}
+
+export async function salvarDisponibilidadeRegras(
+  regras: DisponibilidadeRegra[],
+  token: string
+): Promise<void> {
+  return apiFetch<void>("/disponibilidade/regras", {
+    method: "PUT",
+    body: { regras },
+    token,
+  });
+}
+
 // ── Configurações ─────────────────────────────────────────────────────────────
+
+export async function fetchConfiguracoesPublico(): Promise<Record<string, string>> {
+  return apiFetch<Record<string, string>>("/admin/configuracoes/publico");
+}
 
 export async function fetchConfiguracoes(token: string): Promise<ConfigItem[]> {
   return apiFetch<ConfigItem[]>("/admin/configuracoes", { token });

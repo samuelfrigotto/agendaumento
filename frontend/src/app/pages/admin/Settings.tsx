@@ -1,44 +1,89 @@
 import { useState, useEffect } from "react";
 import { Save, Clock, Phone, Mail, MapPin, Bell, Loader2 } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
-import { fetchConfiguracoes, salvarConfiguracoes } from "@/services/api";
+import { useApp } from "@/app/context/AppContext";
+import {
+  fetchConfiguracoes, salvarConfiguracoes,
+  fetchDisponibilidadeRegras, salvarDisponibilidadeRegras,
+  type DisponibilidadeRegra,
+} from "@/services/api";
 
-const defaultLocalSettings = {
-  clinicName:    "Agendaumento",
-  phone:         "(11) 3333-4444",
-  email:         "contato@agendaumento.com.br",
-  address:       "Rua das Flores, 123 — São Paulo, SP",
-  monFri:        { open: "08:00", close: "18:00" },
-  sat:           { open: "09:00", close: "16:00" },
-  sunOpen:       false,
-  slotDuration:  30,
+const defaultLocal = {
+  clinicName:   "Agendaumento",
+  phone:        "(11) 3333-4444",
+  email:        "contato@agendaumento.com.br",
+  address:      "Rua das Flores, 123 — São Paulo, SP",
+  monFri:       { open: "08:00", close: "18:00" },
+  sat:          { open: "09:00", close: "16:00" },
+  sunOpen:      false,
+  slotDuration: 30,
 };
 
 const defaultSmtp = {
-  smtp_host:     "",
-  smtp_port:     "587",
-  smtp_user:     "",
-  smtp_pass:     "",
-  smtp_from:     "",
-  smtp_ativo:    "false",
+  smtp_host:  "",
+  smtp_port:  "587",
+  smtp_user:  "",
+  smtp_pass:  "",
+  smtp_from:  "",
+  smtp_ativo: "false",
 };
 
 export function AdminSettings() {
   const { adminToken } = useAuth();
-  const [local, setLocal] = useState(defaultLocalSettings);
-  const [smtp, setSmtp] = useState(defaultSmtp);
+  const { refetchClinicInfo } = useApp();
+  const [local, setLocal]   = useState(defaultLocal);
+  const [smtp, setSmtp]     = useState(defaultSmtp);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving]   = useState(false);
+  const [saved, setSaved]     = useState(false);
+  const [error, setError]     = useState<string | null>(null);
 
   useEffect(() => {
     if (!adminToken) return;
-    fetchConfiguracoes(adminToken)
-      .then((items) => {
+    Promise.all([
+      fetchConfiguracoes(adminToken),
+      fetchDisponibilidadeRegras(adminToken),
+    ])
+      .then(([items, regras]) => {
+        // Map config items
         const map: Record<string, string> = {};
         items.forEach((i) => { if (i.valor !== null) map[i.chave] = i.valor; });
-        setSmtp((prev) => ({ ...prev, ...Object.fromEntries(Object.entries(map).filter(([k]) => k.startsWith("smtp_"))) }));
+
+        // Load SMTP (keep empty string for smtp_pass so user must retype)
+        setSmtp((prev) => ({
+          ...prev,
+          smtp_host:  map.smtp_host  ?? prev.smtp_host,
+          smtp_port:  map.smtp_port  ?? prev.smtp_port,
+          smtp_user:  map.smtp_user  ?? prev.smtp_user,
+          smtp_from:  map.smtp_from  ?? prev.smtp_from,
+          smtp_ativo: map.smtp_ativo ?? prev.smtp_ativo,
+          // never pre-fill smtp_pass to avoid sending masked value back
+        }));
+
+        // Load clinic info
+        setLocal((prev) => ({
+          ...prev,
+          clinicName: map.clinic_nome      ?? prev.clinicName,
+          phone:      map.clinic_telefone  ?? prev.phone,
+          email:      map.clinic_email     ?? prev.email,
+          address:    map.clinic_endereco  ?? prev.address,
+        }));
+
+        // Load business hours from disponibilidade rules
+        const monFriRule = regras.find((r) => r.dia_semana === 1 && r.ativo);
+        const satRule    = regras.find((r) => r.dia_semana === 6 && r.ativo);
+        const sunRule    = regras.find((r) => r.dia_semana === 0 && r.ativo);
+
+        setLocal((prev) => ({
+          ...prev,
+          monFri: monFriRule
+            ? { open: monFriRule.hora_inicio.slice(0, 5), close: monFriRule.hora_fim.slice(0, 5) }
+            : prev.monFri,
+          sat: satRule
+            ? { open: satRule.hora_inicio.slice(0, 5), close: satRule.hora_fim.slice(0, 5) }
+            : prev.sat,
+          sunOpen: !!sunRule,
+        }));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -49,7 +94,44 @@ export function AdminSettings() {
     setSaving(true);
     setError(null);
     try {
-      await salvarConfiguracoes(smtp, adminToken);
+      // Build config payload
+      const configPayload: Record<string, string> = {
+        clinic_nome:                    local.clinicName,
+        clinic_telefone:                local.phone,
+        clinic_email:                   local.email,
+        clinic_endereco:                local.address,
+        clinic_horario_seg_sex_inicio:  local.monFri.open,
+        clinic_horario_seg_sex_fim:     local.monFri.close,
+        clinic_horario_sab_inicio:      local.sat.open,
+        clinic_horario_sab_fim:         local.sat.close,
+        clinic_domingo_aberto:          String(local.sunOpen),
+        smtp_host:  smtp.smtp_host,
+        smtp_port:  smtp.smtp_port,
+        smtp_user:  smtp.smtp_user,
+        smtp_from:  smtp.smtp_from,
+        smtp_ativo: smtp.smtp_ativo,
+      };
+      // Only save smtp_pass if user typed a new one
+      if (smtp.smtp_pass && smtp.smtp_pass !== "••••••••") {
+        configPayload.smtp_pass = smtp.smtp_pass;
+      }
+
+      await salvarConfiguracoes(configPayload, adminToken);
+
+      // Build disponibilidade regras from hours
+      const regras: DisponibilidadeRegra[] = [];
+      for (let d = 1; d <= 5; d++) {
+        regras.push({ dia_semana: d, hora_inicio: local.monFri.open, hora_fim: local.monFri.close, ativo: true });
+      }
+      regras.push({ dia_semana: 6, hora_inicio: local.sat.open, hora_fim: local.sat.close, ativo: true });
+      if (local.sunOpen) {
+        regras.push({ dia_semana: 0, hora_inicio: local.sat.open, hora_fim: local.sat.close, ativo: true });
+      }
+      await salvarDisponibilidadeRegras(regras, adminToken);
+
+      // Refresh topbar/footer
+      await refetchClinicInfo();
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err: unknown) {
@@ -69,7 +151,7 @@ export function AdminSettings() {
 
   return (
     <div className="space-y-5 max-w-2xl">
-      {/* Clinic Info (local-only) */}
+      {/* Clinic Info */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <div className="flex items-center gap-2 mb-5">
           <MapPin size={18} className="text-teal-600" />
@@ -117,12 +199,15 @@ export function AdminSettings() {
         </div>
       </div>
 
-      {/* Business Hours (local-only) */}
+      {/* Business Hours */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
-        <div className="flex items-center gap-2 mb-5">
+        <div className="flex items-center gap-2 mb-1">
           <Clock size={18} className="text-teal-600" />
           <h2 className="text-gray-900 font-bold">Horário de Funcionamento</h2>
         </div>
+        <p className="text-xs text-gray-400 mb-5">
+          Esses horários definem os slots disponíveis para agendamento online.
+        </p>
         <div className="space-y-4">
           <div>
             <p className="text-xs text-gray-500 mb-2 font-semibold">Segunda – Sexta</p>
@@ -169,12 +254,14 @@ export function AdminSettings() {
               onChange={(e) => setLocal((s) => ({ ...s, sunOpen: e.target.checked }))}
               className="accent-teal-600 w-4 h-4"
             />
-            <label htmlFor="sun-open" className="text-sm text-gray-700 cursor-pointer">Aberto aos domingos</label>
+            <label htmlFor="sun-open" className="text-sm text-gray-700 cursor-pointer">
+              Aberto aos domingos (mesmo horário do sábado)
+            </label>
           </div>
         </div>
       </div>
 
-      {/* SMTP / Notifications (saved to API) */}
+      {/* SMTP */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <div className="flex items-center gap-2 mb-5">
           <Bell size={18} className="text-teal-600" />
@@ -222,7 +309,7 @@ export function AdminSettings() {
               <label className="block text-xs text-gray-600 mb-1 font-semibold">Senha</label>
               <input type="password" value={smtp.smtp_pass}
                 onChange={(e) => setSmtp((s) => ({ ...s, smtp_pass: e.target.value }))}
-                placeholder="••••••••"
+                placeholder="Deixe em branco para manter a atual"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
               />
             </div>

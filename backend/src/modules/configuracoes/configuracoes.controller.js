@@ -1,6 +1,7 @@
 const service = require('./configuracoes.service');
 
 const listar = (req, res, next) => service.listar().then(d => res.json(d)).catch(next);
+const listarPublico = (req, res, next) => service.listarPublico().then(d => res.json(d)).catch(next);
 
 async function salvar(req, res, next) {
   try {
@@ -14,4 +15,4 @@ async function salvar(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listar, salvar };
+module.exports = { listar, listarPublico, salvar };

@@ -66,7 +66,13 @@ export function BookAppointment() {
   const set = (key: keyof FormData, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  const today = new Date().toISOString().split("T")[0];
+  // 14-day chip picker helpers
+  const next14Days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  const toIso = (d: Date) => d.toISOString().split("T")[0];
   const selectedService = activeServices.find((s) => s.id === form.serviceId);
   const selectedPet = pets.find((p) => p.id === selectedPetId);
 
@@ -300,13 +306,31 @@ export function BookAppointment() {
         <div className="space-y-6">
           <div>
             <h2 className="font-bold text-gray-900 mb-4">Escolha a Data</h2>
-            <input
-              type="date"
-              min={today}
-              value={form.date}
-              onChange={(e) => set("date", e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
-            />
+            <div className="grid grid-cols-7 gap-1.5">
+              {next14Days.map((d) => {
+                const iso = toIso(d);
+                const isSelected = form.date === iso;
+                const weekday = d.toLocaleDateString("pt-BR", { weekday: "short" })
+                  .replace(".", "").toUpperCase();
+                const month = d.toLocaleDateString("pt-BR", { month: "short" })
+                  .replace(".", "");
+                return (
+                  <button
+                    key={iso}
+                    onClick={() => set("date", iso)}
+                    className={`flex flex-col items-center py-2 rounded-xl border transition-all ${
+                      isSelected
+                        ? "bg-teal-600 text-white border-teal-600"
+                        : "border-gray-200 text-gray-700 hover:border-teal-400 hover:bg-teal-50"
+                    }`}
+                  >
+                    <span className="text-[9px] font-semibold opacity-70">{weekday}</span>
+                    <span className="text-base font-bold leading-tight">{d.getDate()}</span>
+                    <span className="text-[9px] opacity-60">{month}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           {form.date && (
             <div>
