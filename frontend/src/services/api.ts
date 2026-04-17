@@ -71,6 +71,7 @@ export interface BackendService {
 
 export interface BackendAppointment {
   id: number;
+  codigo: string | null;
   data_hora: string;
   status: "pendente" | "confirmado" | "concluido" | "cancelado";
   observacoes: string | null;
@@ -142,6 +143,7 @@ export function mapAppointment(raw: BackendAppointment): Appointment {
 
   return {
     id: String(raw.id),
+    codigo: raw.codigo ?? undefined,
     ownerName: raw.cliente_nome ?? raw.nome_avulso ?? "Desconhecido",
     ownerEmail: "",
     ownerPhone: raw.cliente_telefone ?? raw.telefone_avulso ?? "",
@@ -368,4 +370,67 @@ export async function salvarConfiguracoes(
     body: configs,
     token,
   });
+}
+
+// ── Financeiro ────────────────────────────────────────────────────────────────
+
+export interface FinanceiroResumo {
+  total_concluidos: number;
+  total_cancelados: number;
+  total_pendentes: number;
+  receita_total: number;
+}
+
+export interface FinanceiroMensal {
+  mes: string;
+  total_concluidos: number;
+  total: number;
+  receita: number;
+}
+
+export interface FinanceiroPorServico {
+  servico_nome: string;
+  total_concluidos: number;
+  receita: number;
+}
+
+export interface FinanceiroItem {
+  id: number;
+  data_hora: string;
+  status: string;
+  valor_cobrado: string | null;
+  origem: string;
+  cliente_nome: string | null;
+  pet_nome: string | null;
+  servico_nome: string;
+}
+
+export async function fetchFinanceiroResumo(
+  token: string,
+  mes: number,
+  ano: number
+): Promise<FinanceiroResumo> {
+  return apiFetch<FinanceiroResumo>(`/financeiro/resumo?mes=${mes}&ano=${ano}`, { token });
+}
+
+export async function fetchFinanceiroMensal(token: string): Promise<FinanceiroMensal[]> {
+  return apiFetch<FinanceiroMensal[]>("/financeiro/mensal", { token });
+}
+
+export async function fetchFinanceiroPorServico(
+  token: string,
+  mes: number,
+  ano: number
+): Promise<FinanceiroPorServico[]> {
+  return apiFetch<FinanceiroPorServico[]>(`/financeiro/porservico?mes=${mes}&ano=${ano}`, { token });
+}
+
+export async function fetchFinanceiroItens(
+  token: string,
+  mes: number,
+  ano: number,
+  status?: string
+): Promise<FinanceiroItem[]> {
+  const qs = status ? `&status=${status}` : "";
+  return apiFetch<FinanceiroItem[]>(`/financeiro/servicos?mes=${mes}&ano=${ano}${qs}`, { token });
 }

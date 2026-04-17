@@ -185,7 +185,7 @@ function AppointmentCard({ appt, expandedId, setExpandedId, fmtDate }: {
               <p className="text-gray-400 text-[10px]">padrão: R$ {appt.servicePrice.toFixed(2).replace(".", ",")}</p>
             )}
           </div>
-          <div><p className="text-gray-400 font-semibold mb-1">Código</p><p className="text-gray-600 font-mono">#{appt.id}</p></div>
+          <div><p className="text-gray-400 font-semibold mb-1">Código</p><p className="text-gray-600 font-mono">#{appt.codigo ?? appt.id}</p></div>
         </div>
       )}
     </div>

@@ -54,4 +54,44 @@ async function listarServicos({ mes, ano, status, pagina = 1, limite = 50 }) {
   return rows;
 }
 
-module.exports = { resumo, listarServicos };
+async function tendenciaMensal() {
+  const { rows } = await pool.query(
+    `SELECT
+       TO_CHAR(DATE_TRUNC('month', data_hora AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM') AS mes,
+       COUNT(*) FILTER (WHERE status = 'concluido')  AS total_concluidos,
+       COUNT(*)                                       AS total,
+       COALESCE(SUM(valor_cobrado) FILTER (WHERE status = 'concluido'), 0) AS receita
+     FROM agendamentos
+     WHERE data_hora >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')
+     GROUP BY mes
+     ORDER BY mes`
+  );
+  return rows.map(r => ({
+    mes: r.mes,
+    total_concluidos: parseInt(r.total_concluidos, 10),
+    total: parseInt(r.total, 10),
+    receita: parseFloat(r.receita),
+  }));
+}
+
+async function porServico({ mes, ano }) {
+  const { rows } = await pool.query(
+    `SELECT s.nome AS servico_nome,
+            COUNT(*) FILTER (WHERE a.status = 'concluido') AS total_concluidos,
+            COALESCE(SUM(a.valor_cobrado) FILTER (WHERE a.status = 'concluido'), 0) AS receita
+     FROM agendamentos a
+     JOIN servicos s ON s.id = a.servico_id
+     WHERE EXTRACT(MONTH FROM a.data_hora AT TIME ZONE 'America/Sao_Paulo') = $1
+       AND EXTRACT(YEAR  FROM a.data_hora AT TIME ZONE 'America/Sao_Paulo') = $2
+     GROUP BY s.nome
+     ORDER BY receita DESC`,
+    [mes, ano]
+  );
+  return rows.map(r => ({
+    servico_nome: r.servico_nome,
+    total_concluidos: parseInt(r.total_concluidos, 10),
+    receita: parseFloat(r.receita),
+  }));
+}
+
+module.exports = { resumo, listarServicos, tendenciaMensal, porServico };

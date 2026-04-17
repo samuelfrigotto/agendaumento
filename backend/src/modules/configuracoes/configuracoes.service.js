@@ -3,9 +3,12 @@ const pool = require('../../config/database');
 const CHAVES_PERMITIDAS = [
   'smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_ativo',
   'whatsapp_api_url','whatsapp_api_key','whatsapp_instance','whatsapp_ativo',
+  'whatsapp_numero','whatsapp_token',
   'clinic_nome','clinic_telefone','clinic_email','clinic_endereco',
   'clinic_horario_seg_sex_inicio','clinic_horario_seg_sex_fim',
   'clinic_horario_sab_inicio','clinic_horario_sab_fim','clinic_domingo_aberto',
+  'clinic_almoco_seg_sex_ativo','clinic_almoco_seg_sex_inicio','clinic_almoco_seg_sex_fim',
+  'clinic_almoco_sab_ativo','clinic_almoco_sab_inicio','clinic_almoco_sab_fim',
 ];
 
 const CHAVES_PUBLICAS = [

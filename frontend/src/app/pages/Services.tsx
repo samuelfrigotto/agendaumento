@@ -14,27 +14,14 @@ const iconMap: Record<string, React.ElementType> = {
   smile: Smile, leaf: Leaf, zap: Zap,
 };
 
-const categoryLabels: Record<string, string> = {
-  Banho: "Banho",
-  Tosa: "Tosa",
-  Estética: "Estética",
-  Higiene: "Higiene",
-  Combo: "Combo",
-};
-
 export function Services() {
   const { services, clinicInfo } = useApp();
   const active = services.filter((s) => s.active);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("Todos");
-
-  const categories = ["Todos", ...Array.from(new Set(active.map((s) => s.category)))];
 
   const filtered = active.filter((s) => {
     const q = search.toLowerCase();
-    const matchSearch = s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q);
-    const matchCat = category === "Todos" || s.category === category;
-    return matchSearch && matchCat;
+    return s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q);
   });
 
   return (
@@ -51,8 +38,8 @@ export function Services() {
 
       {/* Search + filters */}
       <section className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
+        <div className="mb-6">
+          <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -61,21 +48,6 @@ export function Services() {
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
             />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-sm border transition-all ${
-                  category === cat
-                    ? "bg-teal-600 text-white border-teal-600 font-semibold"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                {categoryLabels[cat] ?? cat}
-              </button>
-            ))}
           </div>
         </div>
 

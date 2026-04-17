@@ -28,4 +28,18 @@ async function listarServicos(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { resumo, listarServicos };
+async function tendenciaMensal(req, res, next) {
+  try {
+    const data = await service.tendenciaMensal();
+    res.json(data);
+  } catch (err) { next(err); }
+}
+
+async function porServico(req, res, next) {
+  try {
+    const data = await service.porServico(parseMesAno(req));
+    res.json(data);
+  } catch (err) { next(err); }
+}
+
+module.exports = { resumo, listarServicos, tendenciaMensal, porServico };

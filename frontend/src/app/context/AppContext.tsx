@@ -12,6 +12,7 @@ export interface Pet {
 
 export interface Appointment {
   id: string;
+  codigo?: string;
   ownerName: string;
   ownerEmail: string;
   ownerPhone: string;

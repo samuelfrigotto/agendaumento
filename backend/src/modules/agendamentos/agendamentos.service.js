@@ -1,7 +1,24 @@
 const pool = require('../../config/database');
 
+// ── Código único alfanumérico (5 chars) ───────────────────────────────────────
+const CODIGO_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function randomCodigo() {
+  let c = '';
+  for (let i = 0; i < 5; i++) c += CODIGO_CHARS[Math.floor(Math.random() * CODIGO_CHARS.length)];
+  return c;
+}
+async function gerarCodigoUnico() {
+  for (let i = 0; i < 20; i++) {
+    const codigo = randomCodigo();
+    const { rows } = await pool.query('SELECT 1 FROM agendamentos WHERE codigo = $1', [codigo]);
+    if (rows.length === 0) return codigo;
+  }
+  return randomCodigo() + randomCodigo().slice(0, 2); // fallback 7-char
+}
+
 const SELECT_BASE = `
   SELECT a.id,
+         a.codigo,
          a.data_hora,
          a.status,
          a.origem,
@@ -83,10 +100,11 @@ async function criarPeloCliente({ clienteId, petId, servicoId, dataHora, observa
   const { rows: srv } = await pool.query('SELECT preco FROM servicos WHERE id = $1 AND ativo = TRUE', [servicoId]);
   if (!srv[0]) throw { status: 400, message: 'Serviço inválido.' };
 
+  const codigo = await gerarCodigoUnico();
   const { rows } = await pool.query(
-    `INSERT INTO agendamentos (cliente_id, pet_id, servico_id, data_hora, observacoes, valor_cobrado, origem)
-     VALUES ($1,$2,$3,$4,$5,$6,'cliente') RETURNING id`,
-    [clienteId, petId, servicoId, dataHora, observacoes || null, srv[0].preco]
+    `INSERT INTO agendamentos (cliente_id, pet_id, servico_id, data_hora, observacoes, valor_cobrado, origem, codigo)
+     VALUES ($1,$2,$3,$4,$5,$6,'cliente',$7) RETURNING id`,
+    [clienteId, petId, servicoId, dataHora, observacoes || null, srv[0].preco, codigo]
   );
   return buscarPorId(rows[0].id);
 }
@@ -95,13 +113,14 @@ async function criarPeloAdmin({ servicoId, dataHora, clienteId, petId, nomeAvuls
   const { rows: srv } = await pool.query('SELECT preco FROM servicos WHERE id = $1', [servicoId]);
   if (!srv[0]) throw { status: 400, message: 'Serviço inválido.' };
 
+  const codigo = await gerarCodigoUnico();
   const { rows } = await pool.query(
     `INSERT INTO agendamentos
-       (servico_id, data_hora, cliente_id, pet_id, nome_avulso, telefone_avulso, pet_nome_avulso, observacoes, valor_cobrado, origem)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'admin') RETURNING id`,
+       (servico_id, data_hora, cliente_id, pet_id, nome_avulso, telefone_avulso, pet_nome_avulso, observacoes, valor_cobrado, origem, codigo)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'admin',$10) RETURNING id`,
     [servicoId, dataHora, clienteId || null, petId || null, nomeAvulso || null,
      telefoneAvulso || null, petNomeAvulso || null, observacoes || null,
-     valorCobrado ?? srv[0].preco]
+     valorCobrado ?? srv[0].preco, codigo]
   );
   return buscarPorId(rows[0].id);
 }

@@ -10,6 +10,7 @@ import { AdminDashboard } from "./pages/admin/Dashboard";
 import { AdminAppointments } from "./pages/admin/Appointments";
 import { AdminServices } from "./pages/admin/Services";
 import { AdminSettings } from "./pages/admin/Settings";
+import { AdminFinancial } from "./pages/admin/Financial";
 import { AdminLogin } from "./pages/admin/Login";
 import { useAuth } from "./context/AuthContext";
 
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
       { index: true, element: <AdminGuard><AdminDashboard /></AdminGuard> },
       { path: "agendamentos", element: <AdminGuard><AdminAppointments /></AdminGuard> },
       { path: "servicos", element: <AdminGuard><AdminServices /></AdminGuard> },
+      { path: "financeiro", element: <AdminGuard><AdminFinancial /></AdminGuard> },
       { path: "configuracoes", element: <AdminGuard><AdminSettings /></AdminGuard> },
     ],
   },

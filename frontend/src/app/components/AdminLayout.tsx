@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import {
-  PawPrint, LayoutDashboard, CalendarCheck, Scissors, Settings, ArrowLeft, Menu, X, LogOut
+  PawPrint, LayoutDashboard, CalendarCheck, Scissors, Settings, ArrowLeft, Menu, X, LogOut, TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 
@@ -9,6 +9,7 @@ const navItems = [
   { to: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
   { to: "/admin/agendamentos", label: "Agendamentos", icon: CalendarCheck },
   { to: "/admin/servicos", label: "Serviços", icon: Scissors },
+  { to: "/admin/financeiro", label: "Financeiro", icon: TrendingUp },
   { to: "/admin/configuracoes", label: "Configurações", icon: Settings },
 ];
 
