@@ -134,10 +134,10 @@ export function Services() {
           <h3 className="text-2xl font-bold mb-2">Dúvidas sobre algum serviço?</h3>
           <p className="text-teal-100 mb-6">Entre em contato e teremos prazer em ajudar!</p>
           <a
-            href="tel:+551133334444"
+            href={`tel:+55${clinicInfo.telefone.replace(/\D/g, "")}`}
             className="inline-flex items-center gap-2 px-6 py-3 bg-white text-teal-700 font-bold rounded-2xl hover:bg-teal-50 transition-colors"
           >
-            <Phone size={16} /> (11) 3333-4444
+            {clinicInfo.telefone}
           </a>
         </div>
       </section>

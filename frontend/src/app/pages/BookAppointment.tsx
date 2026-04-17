@@ -11,6 +11,7 @@ import {
   criarAgendamentoCliente, ApiError,
   type BackendPet, type TipoAnimal,
 } from "@/services/api";
+import { ICON_MAP } from "@/app/pages/admin/Services";
 
 function formatCPF(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
@@ -133,7 +134,7 @@ export function BookAppointment() {
     setAuthError(null);
     setAuthLoading(true);
     try {
-      await registerClient(nome, cpf, telefone, senha, email || undefined);
+      await registerClient(nome, cpf, telefone, senha, email);
     } catch (err: unknown) {
       setAuthError(err instanceof Error ? err.message : "Erro ao cadastrar.");
     } finally {
@@ -301,7 +302,7 @@ export function BookAppointment() {
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                       form.serviceId === s.id ? "bg-teal-600" : "bg-gray-100"
                     }`}>
-                      <Scissors size={18} className={form.serviceId === s.id ? "text-white" : "text-gray-500"} />
+                      {(() => { const Icon = ICON_MAP[s.icon] ?? Scissors; return <Icon size={18} className={form.serviceId === s.id ? "text-white" : "text-gray-500"} />; })()}
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900 text-sm">{s.name}</p>
@@ -433,6 +434,10 @@ export function BookAppointment() {
                     {authLoading ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
                     Entrar
                   </button>
+                  <p className="text-center text-xs text-gray-400 pt-1">
+                    Esqueceu a senha?{" "}
+                    <span className="text-teal-600 font-semibold">Entre em contato pelo telefone para redefinir.</span>
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -446,7 +451,7 @@ export function BookAppointment() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-600 font-semibold mb-1">CPF *</label>
-                      <input value={cpf} onChange={(e) => setCpf(e.target.value)}
+                      <input value={cpf} onChange={(e) => setCpf(formatCPF(e.target.value))}
                         placeholder="000.000.000-00"
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
                       />
@@ -460,7 +465,7 @@ export function BookAppointment() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600 font-semibold mb-1">E-mail (opcional)</label>
+                    <label className="block text-xs text-gray-600 font-semibold mb-1">E-mail *</label>
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                       placeholder="seu@email.com"
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
@@ -476,7 +481,7 @@ export function BookAppointment() {
                   {authError && <p className="text-red-600 text-xs bg-red-50 px-3 py-2 rounded-lg">{authError}</p>}
                   <button
                     onClick={handleRegister}
-                    disabled={authLoading || !nome || !cpf || !telefone || !senha}
+                    disabled={authLoading || !nome || !cpf || !telefone || !email || !senha}
                     className="w-full py-3 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                   >
                     {authLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}

@@ -86,7 +86,7 @@ export function MyAppointments() {
             value={input}
             onChange={(e) => setInput(autoFormat(e.target.value))}
             onKeyDown={(e) => e.key === "Enter" && handleBuscar()}
-            placeholder="Ex: 111.690.789-58 ou (46) 98404-4141"
+            placeholder="000.000.000-00 ou (00) 00000-0000"
             className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
           />
           <button
